@@ -203,7 +203,7 @@ def event_delete(d: Draw):
     when = "tomorrow" if offset == 1 else WEEKDAYS[day.weekday()] if offset < 7 else ""
     rest = [x for x in d.phone["events"] if x["id"] != e["id"]]
     return d.recipe("lookup", "event_delete", f"Cancel \"{e['title']}\"" + (f" ({when})" if when else "") + ".",
-                    [{"changes": {"events": rest}}], [e["title"], when])
+                    [{"changes": {"events": rest}}], [e["title"], when, "cancel|delete|remove|drop|scrap|clear|axe|nix"])
 
 
 def event_move(d: Draw):
@@ -214,7 +214,8 @@ def event_move(d: Draw):
     hhmm, time_words = d.time((8, 20))
     moved = [x | ({"date": new_day.isoformat(), "start": hhmm} if x["id"] == e["id"] else {}) for x in d.phone["events"]]
     return d.recipe("lookup", "event_move", f"Move \"{e['title']}\" to {day_words} at {time_words}.",
-                    done({"events": moved}, d, new_day, hhmm), [e["title"].split()[0], day_words, time_words])
+                    done({"events": moved}, d, new_day, hhmm),
+                    [e["title"].split()[0], day_words, time_words, "move|reschedule|push|shift|change|postpone|bump"])
 
 
 # --- Dates, times, units ---
@@ -302,7 +303,8 @@ def note_find(d: Draw):
         return note_add(d)
     topic = note.split(":", 1)[0].lower()
     return d.recipe("lookalike", "note_find", f"Ask what they saved about \"{topic}\" (a note), without saying 'note'.",
-                    nothing([note_key(note)]), [topic.split()[-1]])
+                    nothing([note_key(note)]),
+                    [topic.split()[-1], "what|whats|where|which|find|search|look|show|saved|wrote|again|tell|check"])
 
 
 def note_add(d: Draw):

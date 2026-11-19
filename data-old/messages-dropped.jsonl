@@ -1,0 +1,11 @@
+{"seed": 0, "kind": "app_missing", "messages": ["nope, weather app's missing"], "say": ["Weather", "open"], "dropped": "missing ['open']"}
+{"seed": 1, "kind": "message_one", "messages": ["text camila whatsapp"], "say": ["Camila", "landed safely", "whatsapp"], "dropped": "missing ['landed safely']"}
+{"seed": 4, "kind": "event_repeat", "messages": ["yoga sat 5pm"], "say": ["Yoga", "every saturday", "5pm"], "dropped": "missing ['every saturday']"}
+{"seed": 11, "kind": "media", "messages": ["skip this song"], "say": [], "dropped": "duplicate, or too close to an eval case"}
+{"seed": 13, "kind": "event_add", "messages": ["add football practice may 20 for 90 mins"], "say": ["Football practice", "20 May", "5pm"], "dropped": "missing ['5pm']"}
+{"seed": 21, "kind": "message_one", "messages": ["text t"], "say": ["Tyler Wilson", "see you soon"], "dropped": "missing ['Tyler Wilson', 'see you soon']"}
+{"seed": 23, "kind": "reminder_in", "messages": ["remind me pay rent in an h and half"], "say": ["rent", "hour"], "dropped": "missing ['hour']"}
+{"seed": 31, "kind": "contact_missing", "messages": ["I'm sorry but I can't find Fernanda in my contacts."], "say": ["Fernanda"], "dropped": "sounds like the assistant"}
+{"seed": 35, "kind": "pick_contact", "messages": ["ring isla"], "say": ["Isla", "Hall"], "dropped": "no follow-up"}
+{"seed": 45, "kind": "event_add", "messages": ["that's going to be a big night, don't you think?"], "say": ["Concert", "17/3", "9"], "dropped": "missing ['Concert', '17/3', '9']"}
+{"seed": 46, "kind": "app_missing", "messages": ["it doesn't seem like that's on your phone."], "say": ["Files", "open"], "dropped": "missing ['Files', 'open']"}
