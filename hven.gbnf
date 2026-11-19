@@ -1,0 +1,74 @@
+root ::= "<tool_call>\n<function=" (set-timer | set-alarm | find-events | add-event | edit-events | delete-events | find-contact | call | draft-message | draft-email | add-reminder | add-note | find-notes | open-app | navigate | flashlight | open-settings | media-control | volume | play-music | calculate | days-until) "</function>\n</tool_call>"
+
+set-timer-hours ::= "<parameter=hours>\n" integer "\n</parameter>\n"
+set-timer-minutes ::= "<parameter=minutes>\n" integer "\n</parameter>\n"
+set-timer-seconds ::= "<parameter=seconds>\n" integer "\n</parameter>\n"
+set-timer ::= "set_timer>\n" set-timer-hours? set-timer-minutes? set-timer-seconds?
+set-alarm-hour ::= "<parameter=hour>\n" integer "\n</parameter>\n"
+set-alarm-minute ::= "<parameter=minute>\n" integer "\n</parameter>\n"
+set-alarm-days ::= "<parameter=days>\n" "[" ("\"monday\"" | "\"tuesday\"" | "\"wednesday\"" | "\"thursday\"" | "\"friday\"" | "\"saturday\"" | "\"sunday\"") ("," " "? ("\"monday\"" | "\"tuesday\"" | "\"wednesday\"" | "\"thursday\"" | "\"friday\"" | "\"saturday\"" | "\"sunday\""))* "]" "\n</parameter>\n"
+set-alarm ::= "set_alarm>\n" set-alarm-hour set-alarm-minute set-alarm-days?
+find-events-from-date ::= "<parameter=from_date>\n" date "\n</parameter>\n"
+find-events-to-date ::= "<parameter=to_date>\n" date "\n</parameter>\n"
+find-events ::= "find_events>\n" find-events-from-date find-events-to-date?
+add-event-title ::= "<parameter=title>\n" text "\n</parameter>\n"
+add-event-date ::= "<parameter=date>\n" date "\n</parameter>\n"
+add-event-start ::= "<parameter=start>\n" time "\n</parameter>\n"
+add-event-duration-minutes ::= "<parameter=duration_minutes>\n" integer "\n</parameter>\n"
+add-event-repeat ::= "<parameter=repeat>\n" ("daily" | "weekdays" | "weekly" | "monthly" | "yearly") "\n</parameter>\n"
+add-event ::= "add_event>\n" add-event-title add-event-date add-event-start? add-event-duration-minutes? add-event-repeat?
+edit-events-ids ::= "<parameter=ids>\n" "[" integer ("," " "? integer)* "]" "\n</parameter>\n"
+edit-events-title ::= "<parameter=title>\n" text "\n</parameter>\n"
+edit-events-date ::= "<parameter=date>\n" date "\n</parameter>\n"
+edit-events-start ::= "<parameter=start>\n" time "\n</parameter>\n"
+edit-events-duration-minutes ::= "<parameter=duration_minutes>\n" integer "\n</parameter>\n"
+edit-events-shift-days ::= "<parameter=shift_days>\n" integer "\n</parameter>\n"
+edit-events-shift-minutes ::= "<parameter=shift_minutes>\n" integer "\n</parameter>\n"
+edit-events ::= "edit_events>\n" edit-events-ids edit-events-title? edit-events-date? edit-events-start? edit-events-duration-minutes? edit-events-shift-days? edit-events-shift-minutes?
+delete-events-ids ::= "<parameter=ids>\n" "[" integer ("," " "? integer)* "]" "\n</parameter>\n"
+delete-events ::= "delete_events>\n" delete-events-ids
+find-contact-name ::= "<parameter=name>\n" text "\n</parameter>\n"
+find-contact ::= "find_contact>\n" find-contact-name
+call-number ::= "<parameter=number>\n" text "\n</parameter>\n"
+call ::= "call>\n" call-number
+draft-message-number ::= "<parameter=number>\n" text "\n</parameter>\n"
+draft-message-text ::= "<parameter=text>\n" text "\n</parameter>\n"
+draft-message-app ::= "<parameter=app>\n" ("sms" | "whatsapp" | "telegram" | "signal") "\n</parameter>\n"
+draft-message ::= "draft_message>\n" draft-message-number? draft-message-text draft-message-app?
+draft-email-to ::= "<parameter=to>\n" text "\n</parameter>\n"
+draft-email-subject ::= "<parameter=subject>\n" text "\n</parameter>\n"
+draft-email-body ::= "<parameter=body>\n" text "\n</parameter>\n"
+draft-email ::= "draft_email>\n" draft-email-to? draft-email-subject? draft-email-body
+add-reminder-text ::= "<parameter=text>\n" text "\n</parameter>\n"
+add-reminder-date ::= "<parameter=date>\n" date "\n</parameter>\n"
+add-reminder-time ::= "<parameter=time>\n" time "\n</parameter>\n"
+add-reminder ::= "add_reminder>\n" add-reminder-text add-reminder-date add-reminder-time
+add-note-text ::= "<parameter=text>\n" text "\n</parameter>\n"
+add-note ::= "add_note>\n" add-note-text
+find-notes-query ::= "<parameter=query>\n" text "\n</parameter>\n"
+find-notes ::= "find_notes>\n" find-notes-query
+open-app-name ::= "<parameter=name>\n" text "\n</parameter>\n"
+open-app ::= "open_app>\n" open-app-name
+navigate-destination ::= "<parameter=destination>\n" text "\n</parameter>\n"
+navigate ::= "navigate>\n" navigate-destination
+flashlight-on ::= "<parameter=on>\n" boolean "\n</parameter>\n"
+flashlight ::= "flashlight>\n" flashlight-on
+open-settings-panel ::= "<parameter=panel>\n" ("wifi" | "bluetooth" | "dnd" | "airplane" | "location" | "battery" | "display" | "sound") "\n</parameter>\n"
+open-settings ::= "open_settings>\n" open-settings-panel
+media-control-action ::= "<parameter=action>\n" ("play" | "pause" | "next" | "previous") "\n</parameter>\n"
+media-control ::= "media_control>\n" media-control-action
+volume-direction ::= "<parameter=direction>\n" ("up" | "down") "\n</parameter>\n"
+volume-percent ::= "<parameter=percent>\n" integer "\n</parameter>\n"
+volume ::= "volume>\n" volume-direction? volume-percent?
+play-music-query ::= "<parameter=query>\n" text "\n</parameter>\n"
+play-music ::= "play_music>\n" play-music-query
+calculate-expression ::= "<parameter=expression>\n" text "\n</parameter>\n"
+calculate ::= "calculate>\n" calculate-expression
+days-until-date ::= "<parameter=date>\n" date "\n</parameter>\n"
+days-until ::= "days_until>\n" days-until-date
+
+integer ::= "-"? [0-9]{1,6}
+text ::= [^<\n]+
+date ::= [0-9]{4} "-" [0-9]{2} "-" [0-9]{2}
+time ::= [0-9]{2} ":" [0-9]{2}
+boolean ::= "true" | "false"

@@ -1,0 +1,158 @@
+{
+  "styles": {
+    "plain": "a clear, complete request",
+    "terse": "as few words as possible, no punctuation",
+    "casual": "relaxed, like texting a friend",
+    "polite": "polite, with please or could you",
+    "typos": "one or two typos or missing letters",
+    "slang": "abbreviations like tmrw, pls, w/, gonna, rn",
+    "run-on": "spoken style, long, a filler word or a correction mid-sentence",
+    "lowercase": "all lowercase, no punctuation",
+    "indirect": "says the need, not the command (\"I keep forgetting to water the plants\")"
+  },
+
+  "regions": {
+    "uk": {
+      "first": ["Oliver", "Amelia", "Harry", "Isla", "George", "Poppy", "Jack", "Freya", "Charlie", "Evie", "Tom", "Grace"],
+      "last": ["Smith", "Jones", "Taylor", "Brown", "Evans", "Walker", "Wright", "Hughes", "Clarke", "Hall"],
+      "code": "+44", "mobile": ["7### ######"], "local_prefix": "0"
+    },
+    "us": {
+      "first": ["James", "Emma", "Michael", "Olivia", "Daniel", "Ava", "Ethan", "Mia", "Noah", "Chloe", "Tyler", "Madison"],
+      "last": ["Johnson", "Williams", "Miller", "Davis", "Garcia", "Wilson", "Moore", "Anderson", "Thomas", "Martinez"],
+      "code": "+1", "mobile": ["(###) ###-####", "###-###-####"], "local_prefix": ""
+    },
+    "india": {
+      "first": ["Aarav", "Priya", "Rohan", "Ananya", "Vikram", "Isha", "Arjun", "Kavya", "Rahul", "Neha", "Sanjay", "Divya"],
+      "last": ["Sharma", "Patel", "Iyer", "Reddy", "Gupta", "Nair", "Singh", "Mehta", "Rao", "Kapoor"],
+      "code": "+91", "mobile": ["9#### #####", "98### #####"], "local_prefix": "0"
+    },
+    "nigeria": {
+      "first": ["Chinedu", "Ngozi", "Emeka", "Funmi", "Tunde", "Amaka", "Segun", "Chioma", "Ifeanyi", "Yetunde"],
+      "last": ["Okafor", "Adeyemi", "Okonkwo", "Balogun", "Eze", "Adebayo", "Nwosu", "Bello"],
+      "code": "+234", "mobile": ["803 ### ####", "812 ### ####"], "local_prefix": "0"
+    },
+    "arab": {
+      "first": ["Mohamed", "Fatima", "Omar", "Layla", "Youssef", "Mariam", "Karim", "Nour", "Samir", "Huda"],
+      "last": ["Haddad", "Mansour", "Khalil", "Nasser", "Saleh", "Farouk", "Aziz", "Rahman"],
+      "code": "+971", "mobile": ["50 ### ####", "55 ### ####"], "local_prefix": "0"
+    },
+    "spain_latam": {
+      "first": ["Lucía", "Mateo", "Sofía", "Diego", "Valentina", "Javier", "Camila", "Pablo", "Elena", "Andrés"],
+      "last": ["García", "Fernández", "López", "Martínez", "Sánchez", "Romero", "Torres", "Ruiz"],
+      "code": "+34", "mobile": ["6## ## ## ##", "6## ### ###"], "local_prefix": ""
+    },
+    "italy": {
+      "first": ["Marco", "Giulia", "Luca", "Chiara", "Matteo", "Sara", "Davide", "Elisa", "Francesco", "Martina"],
+      "last": ["Rossi", "Bianchi", "Romano", "Colombo", "Ricci", "Greco", "Conti", "Marino"],
+      "code": "+39", "mobile": ["3## ### ####", "3##-#######"], "local_prefix": ""
+    },
+    "germany": {
+      "first": ["Lukas", "Hannah", "Jonas", "Lena", "Felix", "Anna", "Paul", "Marie", "Leon", "Sophie"],
+      "last": ["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Wagner", "Becker", "Hoffmann"],
+      "code": "+49", "mobile": ["15# ########", "17# #######"], "local_prefix": "0"
+    },
+    "france": {
+      "first": ["Louis", "Camille", "Hugo", "Léa", "Jules", "Manon", "Arthur", "Inès", "Nathan", "Chloé"],
+      "last": ["Martin", "Bernard", "Dubois", "Moreau", "Laurent", "Lefebvre", "Girard", "Roux"],
+      "code": "+33", "mobile": ["6 ## ## ## ##", "7 ## ## ## ##"], "local_prefix": "0"
+    },
+    "east_asia": {
+      "first": ["Kenji", "Yuki", "Hiroshi", "Aiko", "Wei", "Mei", "Jun", "Min-jun", "Seo-yeon", "Hana"],
+      "last": ["Tanaka", "Sato", "Suzuki", "Wang", "Li", "Chen", "Kim", "Park"],
+      "code": "+81", "mobile": ["90-####-####", "80-####-####"], "local_prefix": "0"
+    },
+    "brazil": {
+      "first": ["Gabriel", "Beatriz", "Rafael", "Larissa", "Thiago", "Juliana", "Bruno", "Fernanda", "Lucas", "Mariana"],
+      "last": ["Silva", "Santos", "Oliveira", "Souza", "Costa", "Pereira", "Almeida", "Carvalho"],
+      "code": "+55", "mobile": ["11 9####-####", "21 9####-####"], "local_prefix": "0"
+    },
+    "east_europe": {
+      "first": ["Piotr", "Katarzyna", "Andrei", "Elena", "Tomasz", "Olga", "Mihai", "Ivana", "Dmitri", "Zofia"],
+      "last": ["Nowak", "Kowalski", "Popescu", "Ionescu", "Novak", "Horvat", "Petrov", "Wiśniewski"],
+      "code": "+48", "mobile": ["5## ### ###", "6## ### ###"], "local_prefix": ""
+    }
+  },
+
+  "family": ["Mom", "Mum", "Dad", "Grandma", "Grandpa", "My sister", "My brother", "Auntie", "Uncle"],
+  "services": ["Dentist", "Doctor", "Vet", "Plumber", "Hairdresser", "Pizzeria", "Taxi", "Gym", "Landlord", "Babysitter"],
+  "email_domains": ["gmail.com", "outlook.com", "proton.me", "yahoo.com", "icloud.com", "work.example"],
+
+  "events": [
+    {"title": "Dentist", "minutes": [30, 60], "hours": [8, 18]},
+    {"title": "Doctor", "minutes": [20, 30], "hours": [8, 18]},
+    {"title": "Team meeting", "minutes": [30, 60], "hours": [9, 17]},
+    {"title": "Standup", "minutes": [15], "hours": [9, 10]},
+    {"title": "One-on-one with {person}", "minutes": [30], "hours": [9, 17]},
+    {"title": "Lunch with {person}", "minutes": [60, 90], "hours": [12, 14]},
+    {"title": "Dinner with {person}", "minutes": [120], "hours": [19, 21]},
+    {"title": "Coffee with {person}", "minutes": [30, 60], "hours": [8, 17]},
+    {"title": "Gym", "minutes": [60, 90], "hours": [6, 21]},
+    {"title": "Yoga", "minutes": [60], "hours": [7, 20]},
+    {"title": "Football practice", "minutes": [90], "hours": [17, 20]},
+    {"title": "Padel", "minutes": [60, 90], "hours": [16, 21]},
+    {"title": "Climbing", "minutes": [120], "hours": [17, 20]},
+    {"title": "Swimming", "minutes": [60], "hours": [7, 20]},
+    {"title": "Haircut", "minutes": [30, 45], "hours": [9, 18]},
+    {"title": "Parent-teacher meeting", "minutes": [30], "hours": [16, 18]},
+    {"title": "Flight to {city}", "minutes": [120, 180], "hours": [6, 22]},
+    {"title": "Train to {city}", "minutes": [90, 180], "hours": [6, 20]},
+    {"title": "Car service", "minutes": [60, 120], "hours": [8, 16]},
+    {"title": "Job interview", "minutes": [60], "hours": [9, 17]},
+    {"title": "Exam", "minutes": [120], "hours": [9, 15]},
+    {"title": "Concert", "minutes": [180], "hours": [20, 21]},
+    {"title": "Movie with {person}", "minutes": [150], "hours": [18, 21]},
+    {"title": "Book club", "minutes": [90], "hours": [18, 20]},
+    {"title": "Physio", "minutes": [45], "hours": [8, 18]},
+    {"title": "Piano lesson", "minutes": [45, 60], "hours": [15, 19]}
+  ],
+  "all_day": ["{person}'s birthday", "Holiday", "Day off", "Conference", "Moving day", "Anniversary", "Bin day"],
+  "cities": ["London", "Paris", "Berlin", "Milan", "Madrid", "Lisbon", "New York", "Toronto", "Mumbai", "Lagos", "Dubai", "Tokyo", "Seoul", "São Paulo", "Warsaw"],
+
+  "reminders": [
+    "Take the pizza out", "Check the oven", "Pay rent", "Water the plants", "Call {person}", "Take my pills",
+    "Move the car", "Pick up the kids", "Buy milk", "Submit the report", "Book the dentist", "Charge the laptop",
+    "Put the bins out", "Feed the cat", "Renew the passport", "Pay the electricity bill", "Collect the parcel",
+    "Defrost the chicken", "Send {person} the photos", "Cancel the free trial"
+  ],
+
+  "notes": [
+    {"topic": "cabin wifi", "text": "Cabin wifi password: pinetree42"},
+    {"topic": "gate code", "text": "Gate code at Mum's: 4471#"},
+    {"topic": "bike lock", "text": "Bike lock code: 0815"},
+    {"topic": "shopping", "text": "Shopping: eggs, milk, bread, coffee"},
+    {"topic": "parking", "text": "Parked on level 3, spot B12"},
+    {"topic": "gift ideas", "text": "Gift ideas for {person}: book, scarf, concert tickets"},
+    {"topic": "shoe size", "text": "{person}'s shoe size: 38"},
+    {"topic": "router", "text": "Router admin: admin / blue-river-77"},
+    {"topic": "recipe", "text": "Pancakes: 2 eggs, 200 g flour, 300 ml milk"},
+    {"topic": "insurance", "text": "Car insurance policy no. AX-5521-90"},
+    {"topic": "books", "text": "Books to read: Dune, Piranesi, The Hobbit"},
+    {"topic": "flight", "text": "Flight booking ref: QX7P2L"}
+  ],
+
+  "music": ["Daft Punk", "Radiohead", "Taylor Swift", "Burna Boy", "Bad Bunny", "BTS", "Arctic Monkeys", "Adele",
+            "Miles Davis", "Bach", "Coldplay", "Kendrick Lamar", "Rosalía", "lo-fi beats", "some jazz", "80s hits",
+            "Fleetwood Mac", "Stromae", "AR Rahman", "Måneskin"],
+  "places": ["the station", "the airport", "the nearest pharmacy", "the office", "Mum's", "the hospital",
+             "the supermarket", "the stadium", "the beach", "the city centre", "a petrol station", "the museum"],
+  "apps": ["Calendar", "Camera", "Clock", "Contacts", "Firefox", "Gallery", "Messages", "Organic Maps", "Phone",
+           "Signal", "WhatsApp", "Telegram", "Spotify", "Settings", "Files", "Calculator", "Notes", "Weather"],
+
+  "now": {
+    "hours": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1],
+    "special_days": ["a Sunday", "a Friday evening", "the last day of the month", "31 December", "the day before a leap day"]
+  },
+  "date_words": ["today", "tonight", "tomorrow", "a weekday name", "next + weekday", "this weekend",
+                 "a day number (the 3rd)", "a day and month (3 December or 3/12)", "in N days", "next week",
+                 "in N minutes", "in N hours", "end of the month"],
+
+  "situations": {
+    "contact": ["one match", "two matches with the same first name", "not found, a close name exists",
+                "not found at all", "family word (mum, dad)", "service (the dentist)", "has no email", "full name given"],
+    "event": ["one match", "two matches", "not found", "a whole day to clear", "a repeating event",
+              "shift by minutes or days", "new date and time"],
+    "missing": ["no time", "no date", "no recipient", "no message text", "no title"],
+    "error": ["invalid time", "app not installed", "past date"]
+  }
+}

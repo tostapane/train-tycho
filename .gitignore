@@ -1,0 +1,8 @@
+# llama-server build, Python env
+build/
+.venv/
+__pycache__/
+
+# Eval results and generated training data
+results/
+data/

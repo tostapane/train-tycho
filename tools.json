@@ -1,0 +1,134 @@
+[
+  {
+    "name": "set_timer",
+    "description": "Start a countdown timer.",
+    "parameters": {"type": "object", "properties": {"hours": {"type": "integer"}, "minutes": {"type": "integer"}, "seconds": {"type": "integer"}}, "required": []},
+    "hven": {"kind": "action", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "set_alarm",
+    "description": "Set an alarm; it rings the next time the clock shows that time.",
+    "parameters": {"type": "object", "properties": {"hour": {"type": "integer", "description": "0-23"}, "minute": {"type": "integer", "description": "0-59"}, "days": {"type": "array", "items": {"type": "string", "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]}, "description": "repeat on these days; omit to ring once"}}, "required": ["hour", "minute"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "find_events",
+    "description": "List all calendar events from one date to another.",
+    "parameters": {"type": "object", "properties": {"from_date": {"type": "string", "format": "date"}, "to_date": {"type": "string", "format": "date", "description": "default: from_date"}}, "required": ["from_date"]},
+    "hven": {"kind": "read", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "add_event",
+    "description": "Add a calendar event.",
+    "parameters": {"type": "object", "properties": {"title": {"type": "string"}, "date": {"type": "string", "format": "date"}, "start": {"type": "string", "format": "time", "description": "HH:MM, 24-hour; omit only for all-day things (birthday, holiday, day off)"}, "duration_minutes": {"type": "integer", "description": "default: 60"}, "repeat": {"type": "string", "enum": ["daily", "weekdays", "weekly", "monthly", "yearly"]}}, "required": ["title", "date"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "edit_events",
+    "description": "Change calendar events by id: set new values, or shift them earlier or later.",
+    "parameters": {"type": "object", "properties": {"ids": {"type": "array", "items": {"type": "integer"}}, "title": {"type": "string"}, "date": {"type": "string", "format": "date"}, "start": {"type": "string", "format": "time", "description": "HH:MM, 24-hour"}, "duration_minutes": {"type": "integer"}, "shift_days": {"type": "integer"}, "shift_minutes": {"type": "integer"}}, "required": ["ids"]},
+    "hven": {"kind": "action", "confirm": true, "opens_app": false}
+  },
+  {
+    "name": "delete_events",
+    "description": "Delete calendar events by id.",
+    "parameters": {"type": "object", "properties": {"ids": {"type": "array", "items": {"type": "integer"}}}, "required": ["ids"]},
+    "hven": {"kind": "action", "confirm": true, "opens_app": false}
+  },
+  {
+    "name": "find_contact",
+    "description": "Find contacts by name; returns their phone numbers and emails.",
+    "parameters": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
+    "hven": {"kind": "read", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "call",
+    "description": "Start a phone call.",
+    "parameters": {"type": "object", "properties": {"number": {"type": "string"}}, "required": ["number"]},
+    "hven": {"kind": "action", "confirm": true, "opens_app": true}
+  },
+  {
+    "name": "draft_message",
+    "description": "Open a messaging app with a message ready, on the chat with this number. Leave the number out only if the user says they'll pick the chat (e.g. a group). The user presses send.",
+    "parameters": {"type": "object", "properties": {"number": {"type": "string"}, "text": {"type": "string"}, "app": {"type": "string", "enum": ["sms", "whatsapp", "telegram", "signal"], "description": "default: sms"}}, "required": ["text"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": true}
+  },
+  {
+    "name": "draft_email",
+    "description": "Open the email app with an email ready; the user presses send.",
+    "parameters": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}}, "required": ["body"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": true}
+  },
+  {
+    "name": "add_reminder",
+    "description": "Show the user a notification at a date and time.",
+    "parameters": {"type": "object", "properties": {"text": {"type": "string"}, "date": {"type": "string", "format": "date"}, "time": {"type": "string", "format": "time", "description": "HH:MM, 24-hour"}}, "required": ["text", "date", "time"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "add_note",
+    "description": "Save a note.",
+    "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "find_notes",
+    "description": "Search the saved notes.",
+    "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
+    "hven": {"kind": "read", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "open_app",
+    "description": "Open an installed app by name.",
+    "parameters": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": true}
+  },
+  {
+    "name": "navigate",
+    "description": "Open the maps app with directions to a place.",
+    "parameters": {"type": "object", "properties": {"destination": {"type": "string"}}, "required": ["destination"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": true}
+  },
+  {
+    "name": "flashlight",
+    "description": "Turn the flashlight on or off.",
+    "parameters": {"type": "object", "properties": {"on": {"type": "boolean"}}, "required": ["on"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "open_settings",
+    "description": "Open a settings panel of the phone.",
+    "parameters": {"type": "object", "properties": {"panel": {"type": "string", "enum": ["wifi", "bluetooth", "dnd", "airplane", "location", "battery", "display", "sound"]}}, "required": ["panel"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": true}
+  },
+  {
+    "name": "media_control",
+    "description": "Control the music or video that is playing.",
+    "parameters": {"type": "object", "properties": {"action": {"type": "string", "enum": ["play", "pause", "next", "previous"]}}, "required": ["action"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "volume",
+    "description": "Change the media volume: one step up or down, or to a level.",
+    "parameters": {"type": "object", "properties": {"direction": {"type": "string", "enum": ["up", "down"]}, "percent": {"type": "integer", "description": "0-100"}}, "required": []},
+    "hven": {"kind": "action", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "play_music",
+    "description": "Play music matching a search: artist, song, album or genre.",
+    "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
+    "hven": {"kind": "action", "confirm": false, "opens_app": true}
+  },
+  {
+    "name": "calculate",
+    "description": "Compute an arithmetic expression, e.g. (84.60 / 3) * 1.1.",
+    "parameters": {"type": "object", "properties": {"expression": {"type": "string"}}, "required": ["expression"]},
+    "hven": {"kind": "read", "confirm": false, "opens_app": false}
+  },
+  {
+    "name": "days_until",
+    "description": "Count the days from today to a date.",
+    "parameters": {"type": "object", "properties": {"date": {"type": "string", "format": "date"}}, "required": ["date"]},
+    "hven": {"kind": "read", "confirm": false, "opens_app": false}
+  }
+]

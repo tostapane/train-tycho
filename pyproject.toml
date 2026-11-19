@@ -1,0 +1,6 @@
+[project]
+name = "hven-train"
+version = "0.1.0"
+description = "Eval and fine-tuning for Hven's on-device model"
+requires-python = "==3.14.*"
+dependencies = []

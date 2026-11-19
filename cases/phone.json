@@ -1,0 +1,31 @@
+{
+  "now": "2026-11-18T10:00",
+  "formats": ["day/month", "24-hour"],
+  "state": {
+    "events": [
+      {"id": 1, "title": "Dentist", "date": "2026-11-19", "start": "10:00", "duration_minutes": 60},
+      {"id": 2, "title": "Lunch with Anna", "date": "2026-11-19", "start": "13:00", "duration_minutes": 60},
+      {"id": 3, "title": "Team meeting", "date": "2026-11-20", "start": "09:30", "duration_minutes": 60},
+      {"id": 4, "title": "Yoga", "date": "2026-11-20", "start": "18:00", "duration_minutes": 60},
+      {"id": 5, "title": "Dinner at Marco's", "date": "2026-11-21", "start": "20:00", "duration_minutes": 120},
+      {"id": 6, "title": "Meeting with Luca", "date": "2026-11-23", "start": "11:00", "duration_minutes": 60},
+      {"id": 7, "title": "Meeting with Luca", "date": "2026-11-25", "start": "15:00", "duration_minutes": 30},
+      {"id": 8, "title": "Football practice", "date": "2026-11-17", "start": "19:00", "duration_minutes": 90, "repeat": "weekly"},
+      {"id": 9, "title": "Anna's birthday", "date": "1990-11-26", "start": null, "duration_minutes": null, "repeat": "yearly"}
+    ],
+    "contacts": [
+      {"name": "Mom", "phone": "+39 333 111 2222", "email": null},
+      {"name": "Marco Rossi", "phone": "+39 347 555 0101", "email": "marco.rossi@example.com"},
+      {"name": "Giulia Bianchi", "phone": "+39 340 123 4567", "email": "giulia.b@example.com"},
+      {"name": "Giulia Conti", "phone": "+49 151 23456789", "email": null},
+      {"name": "Sara Romano", "phone": "+44 7700 900123", "email": null},
+      {"name": "Luca Ferri", "phone": "+1 (415) 555-0132", "email": "luca.ferri@example.com"},
+      {"name": "Anna Greco", "phone": "06 12 34 56 78", "email": null},
+      {"name": "Kenji Tanaka", "phone": "+81 90-1234-5678", "email": "kenji.t@example.com"}
+    ],
+    "notes": [
+      {"text": "Shopping: milk, eggs, coffee"},
+      {"text": "Bike lock code 4471"}
+    ]
+  }
+}
