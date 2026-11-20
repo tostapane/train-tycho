@@ -4,13 +4,14 @@
 
 import difflib
 import re
-import unicodedata
+
+from app.sim import fold
 
 SHORT = {"tomorrow": ["tmrw", "tmr", "tmrow", "2moro", "tomo"], "tonight": ["tonite", "2nite"],
          "minutes": ["min", "mins"], "hours": ["hr", "hrs", "h"], "seconds": ["sec", "secs"],
          "minute": ["min", "mins"], "hour": ["hr", "hrs", "h"], "second": ["sec", "secs"], "with": ["w"], "you": ["u"],
          "monday": ["mon"], "tuesday": ["tue", "tues"], "wednesday": ["wed", "weds"], "thursday": ["thu", "thur", "thurs"],
-         "friday": ["fri"], "saturday": ["sat"], "sunday": ["sun"], "please": ["pls", "plz"], "message": ["msg"], "mum": ["mom", "mother", "mama", "mummy", "mommy"],
+         "friday": ["fri"], "saturday": ["sat"], "sunday": ["sun"], "please": ["pls", "plz"], "message": ["msg"], "mum": ["mom", "mother", "mama", "mummy", "mommy"], "mom": ["mum", "mother", "mama", "mummy", "mommy"],
          "text": ["txt", "texting", "sms", "message"], "open": ["launch", "start", "opening"], "timer": ["countdown"],
          "alarm": ["wake"], "every": ["each", "weekly", "mondays", "tuesdays", "wednesdays", "thursdays", "fridays", "saturdays", "sundays"]}
 SHORT |= {m.lower(): [m[:3].lower()] for m in ["January", "February", "March", "April", "June", "July", "August",
@@ -40,7 +41,7 @@ UNIT = "|".join(sorted(UNITS, key=len, reverse=True))
 
 # Lowercase without accents ("Andrés" → "andres"), number words as digits ("twenty-five" → "25", "thirteenth" → "13").
 def plain(text: str) -> str:
-    text = "".join(c for c in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(c))
+    text = fold(text)
     combos = "|".join(w for w in list(ONES)[1:10] + list(ORDINALS)[:8])
     text = re.sub(rf"\b({'|'.join(TENS)})[ -]({combos})\b",
                   lambda m: str(TENS[m[1]] + (ONES.get(m[2]) or ORDINALS[m[2]])), text)
@@ -98,8 +99,8 @@ def clock(phrase: str) -> int | None:
     return (int(m[1]) % 12 + (12 if m[3] == "pm" else 0) if m[3] else int(m[1])) * 60 + int(m[2] or 0)
 
 
-# True if `word` is in `found`, allowing short forms ("tues"), prefixes and typos, a month as a number ("14/2"), and
-# the reverse, but never a different number.
+# True if `word` is in `found`, allowing short forms ("tues") and typos, a month as a number ("14/2"), and the
+# reverse, but never a different number. No other prefixes ("can" isn't "cancel"); typos only in words of 5+ letters.
 def has_word(word: str, found: list[str]) -> bool:
     if word in found or any(s in found for s in SHORT.get(word, [])):
         return True
@@ -109,19 +110,21 @@ def has_word(word: str, found: list[str]) -> bool:
         return any(MONTHS.get(f) == int(word) for f in found)
     if any(c.isdigit() for c in word):
         return False
-    return any(len(f) >= max(3, len(word) // 2) and (word.startswith(f) or difflib.SequenceMatcher(None, word, f).ratio() >= 0.8)
-               for f in found)
+    return len(word) >= 5 and any(len(f) >= 5 and difflib.SequenceMatcher(None, word, f).ratio() >= 0.8 for f in found)
 
 
-# True if the message says `phrase`: a time or a length of time by its value, else every word longer than two letters
-# (and every number). "a|b" means either one.
+# True if the message says `phrase`: a time or a length of time by its value, a numeric date as written ("12/5"),
+# else every word longer than two letters and every number (all words if all are short: "up"). "a|b": either one.
 def says(text: str, phrase: str) -> bool:
     if "|" in phrase:
         return any(says(text, option) for option in phrase.split("|"))
-    found = words(text)
-    if all(has_word(w, found) for w in words(phrase) if (len(w) > 2 or w.isdigit()) and w not in SKIP):
-        return True
+    if re.fullmatch(r"\d{1,2}/\d{1,2}", phrase):  # "the 12th of 5th" isn't "12/5"
+        a, b = phrase.split("/")
+        return re.search(rf"(?<!\d)0?{a}\s*[/.-]\s*0?{b}(?!\d)", text) is not None
     if (minute := clock(phrase)) is not None:
         return any(minute in options for options in times(text))
-    own = durations(phrase)
-    return bool(own) and all(w.isdigit() or w in DURATION_WORDS for w in words(phrase)) and own <= durations(text)
+    if all(w.isdigit() or w in DURATION_WORDS for w in words(phrase)) and (own := durations(phrase)):
+        return own <= durations(text)
+    found = words(text)
+    needed = [w for w in words(phrase) if (len(w) > 2 or w.isdigit()) and w not in SKIP] or words(phrase)
+    return all(has_word(w, found) for w in needed)

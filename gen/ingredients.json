@@ -26,18 +26,23 @@
       "last": ["Haddad", "Mansour", "Khalil", "Nasser", "Saleh", "Farouk", "Aziz", "Rahman"],
       "code": "+971", "mobile": ["50 ### ####", "55 ### ####"], "local_prefix": "0"
     },
-    "spain_latam": {
-      "first": ["Lucía", "Mateo", "Sofía", "Diego", "Valentina", "Javier", "Camila", "Pablo", "Elena", "Andrés"],
-      "last": ["García", "Fernández", "López", "Martínez", "Sánchez", "Romero", "Torres", "Ruiz"],
+    "spain": {
+      "first": ["Lucía", "Mateo", "Sofía", "Javier", "Pablo", "Elena", "Hugo", "Carmen", "Álvaro", "Marta"],
+      "last": ["García", "Fernández", "López", "Martínez", "Sánchez", "Romero", "Navarro", "Ruiz"],
       "code": "+34", "mobile": ["6## ## ## ##", "6## ### ###"], "local_prefix": ""
     },
+    "mexico": {
+      "first": ["Santiago", "Ximena", "Diego", "Valentina", "Camila", "Emiliano", "Regina", "Andrés", "Guadalupe", "Leonardo"],
+      "last": ["Hernández", "González", "Rodríguez", "Pérez", "Ramírez", "Flores", "Cruz", "Torres"],
+      "code": "+52", "mobile": ["55 #### ####", "33 #### ####", "81 #### ####"], "local_prefix": ""
+    },
     "italy": {
-      "first": ["Marco", "Giulia", "Luca", "Chiara", "Matteo", "Sara", "Davide", "Elisa", "Francesco", "Martina"],
+      "first": ["Alessandro", "Federica", "Lorenzo", "Chiara", "Matteo", "Silvia", "Davide", "Elisa", "Francesco", "Martina"],
       "last": ["Rossi", "Bianchi", "Romano", "Colombo", "Ricci", "Greco", "Conti", "Marino"],
       "code": "+39", "mobile": ["3## ### ####", "3##-#######"], "local_prefix": ""
     },
     "germany": {
-      "first": ["Lukas", "Hannah", "Jonas", "Lena", "Felix", "Anna", "Paul", "Marie", "Leon", "Sophie"],
+      "first": ["Lukas", "Hannah", "Jonas", "Lena", "Felix", "Clara", "Paul", "Marie", "Leon", "Sophie"],
       "last": ["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Wagner", "Becker", "Hoffmann"],
       "code": "+49", "mobile": ["15# ########", "17# #######"], "local_prefix": "0"
     },
@@ -46,10 +51,20 @@
       "last": ["Martin", "Bernard", "Dubois", "Moreau", "Laurent", "Lefebvre", "Girard", "Roux"],
       "code": "+33", "mobile": ["6 ## ## ## ##", "7 ## ## ## ##"], "local_prefix": "0"
     },
-    "east_asia": {
-      "first": ["Kenji", "Yuki", "Hiroshi", "Aiko", "Wei", "Mei", "Jun", "Min-jun", "Seo-yeon", "Hana"],
-      "last": ["Tanaka", "Sato", "Suzuki", "Wang", "Li", "Chen", "Kim", "Park"],
-      "code": "+81", "mobile": ["90-####-####", "80-####-####"], "local_prefix": "0"
+    "japan": {
+      "first": ["Takumi", "Yuki", "Hiroshi", "Aiko", "Haruto", "Sakura", "Ren", "Yui", "Sota", "Hina"],
+      "last": ["Tanaka", "Sato", "Suzuki", "Takahashi", "Watanabe", "Ito", "Yamamoto", "Nakamura"],
+      "code": "+81", "mobile": ["90-####-####", "80-####-####", "70-####-####"], "local_prefix": "0"
+    },
+    "china": {
+      "first": ["Wei", "Fang", "Lei", "Jing", "Hao", "Xiu", "Yan", "Ming", "Tao", "Hui"],
+      "last": ["Wang", "Li", "Zhang", "Liu", "Chen", "Yang", "Huang", "Zhao"],
+      "code": "+86", "mobile": ["138 #### ####", "139 #### ####", "186 #### ####", "150 #### ####"], "local_prefix": ""
+    },
+    "korea": {
+      "first": ["Min-jun", "Seo-yeon", "Ji-ho", "Ha-eun", "Do-yun", "Ji-woo", "Seo-jun", "Su-ah", "Hana", "Jun"],
+      "last": ["Kim", "Lee", "Park", "Choi", "Jung", "Kang", "Cho", "Yoon"],
+      "code": "+82", "mobile": ["10-####-####"], "local_prefix": "0"
     },
     "brazil": {
       "first": ["Gabriel", "Beatriz", "Rafael", "Larissa", "Thiago", "Juliana", "Bruno", "Fernanda", "Lucas", "Mariana"],
@@ -57,15 +72,77 @@
       "code": "+55", "mobile": ["11 9####-####", "21 9####-####"], "local_prefix": "0"
     },
     "east_europe": {
-      "first": ["Piotr", "Katarzyna", "Andrei", "Elena", "Tomasz", "Olga", "Mihai", "Ivana", "Dmitri", "Zofia"],
-      "last": ["Nowak", "Kowalski", "Popescu", "Ionescu", "Novak", "Horvat", "Petrov", "Wiśniewski"],
+      "first": ["Piotr", "Katarzyna", "Andrei", "Elena", "Tomasz", "Agnieszka", "Mihai", "Ivana", "Marek", "Zofia"],
+      "last": ["Nowak", "Kowalski", "Popescu", "Ionescu", "Novak", "Horvat", "Kowalczyk", "Wiśniewski"],
       "code": "+48", "mobile": ["5## ### ###", "6## ### ###"], "local_prefix": ""
+    },
+    "russia": {
+      "first": ["Dmitri", "Olga", "Alexei", "Natalia", "Sergei", "Anastasia", "Ivan", "Ekaterina", "Mikhail", "Tatiana"],
+      "last": ["Kovalenko", "Shevchenko", "Bondarenko", "Kravchenko", "Sedykh", "Chernykh", "Belykh", "Dolgikh"],
+      "code": "+7", "mobile": ["9## ###-##-##"], "local_prefix": "8 "
+    },
+    "indonesia": {
+      "first": ["Budi", "Siti", "Agus", "Dewi", "Rizky", "Putri", "Andi", "Ayu", "Fajar", "Rina"],
+      "last": ["Santoso", "Wijaya", "Saputra", "Hidayat", "Kusuma", "Pratama", "Nugroho", "Setiawan"],
+      "code": "+62", "mobile": ["812-####-####", "813-####-####", "857-####-####"], "local_prefix": "0"
+    },
+    "pakistan": {
+      "first": ["Ali", "Ayesha", "Hamza", "Sana", "Bilal", "Hira", "Usman", "Mahnoor", "Imran", "Zainab"],
+      "last": ["Khan", "Ahmed", "Malik", "Butt", "Qureshi", "Chaudhry", "Sheikh", "Raza"],
+      "code": "+92", "mobile": ["3## #######"], "local_prefix": "0"
+    },
+    "bangladesh": {
+      "first": ["Rahim", "Nusrat", "Tanvir", "Farzana", "Sabbir", "Sharmin", "Arif", "Taslima", "Mahmud", "Ruma"],
+      "last": ["Hossain", "Islam", "Akter", "Uddin", "Chowdhury", "Sarkar", "Miah", "Begum"],
+      "code": "+880", "mobile": ["17##-######", "18##-######", "19##-######"], "local_prefix": "0"
+    },
+    "philippines": {
+      "first": ["Juan", "Maria", "Jose", "Angelica", "Mark", "Kristine", "Rhea", "Jericho", "Jasmine", "Paolo"],
+      "last": ["Santos", "Reyes", "Cruz", "Bautista", "Ocampo", "Garcia", "Mendoza", "Villanueva"],
+      "code": "+63", "mobile": ["9## ### ####"], "local_prefix": "0"
+    },
+    "egypt": {
+      "first": ["Ahmed", "Mona", "Mahmoud", "Yasmin", "Mostafa", "Nadia", "Tarek", "Heba", "Amr", "Dina"],
+      "last": ["Hassan", "Ibrahim", "Abdelrahman", "Fathy", "Saeed", "Gamal", "Shawky", "Ismail"],
+      "code": "+20", "mobile": ["10 #### ####", "11 #### ####", "12 #### ####"], "local_prefix": "0"
+    },
+    "ethiopia": {
+      "first": ["Abebe", "Tigist", "Dawit", "Hiwot", "Yonas", "Meron", "Bereket", "Selam", "Henok", "Liya"],
+      "last": ["Bekele", "Tesfaye", "Girma", "Haile", "Alemu", "Getachew", "Tadesse", "Mekonnen"],
+      "code": "+251", "mobile": ["9## ### ###"], "local_prefix": "0"
+    },
+    "kenya": {
+      "first": ["Brian", "Faith", "Kevin", "Mercy", "Dennis", "Wanjiru", "Achieng", "Njeri", "Collins", "Akinyi"],
+      "last": ["Mwangi", "Otieno", "Kamau", "Odhiambo", "Kiprop", "Mutua", "Njoroge", "Wanjiku"],
+      "code": "+254", "mobile": ["7## ### ###"], "local_prefix": "0"
+    },
+    "vietnam": {
+      "first": ["Minh", "Linh", "Anh", "Trang", "Đức", "Hương", "Tuấn", "Thảo", "Hùng", "Lan"],
+      "last": ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Vũ", "Đặng", "Bùi"],
+      "code": "+84", "mobile": ["9## ### ###", "3## ### ###"], "local_prefix": "0"
+    },
+    "turkey": {
+      "first": ["Mehmet", "Ayşe", "Mustafa", "Fatma", "Emre", "Zeynep", "Burak", "Elif", "Can", "Merve"],
+      "last": ["Yılmaz", "Kaya", "Demir", "Şahin", "Çelik", "Yıldız", "Aydın", "Öztürk"],
+      "code": "+90", "mobile": ["5## ### ## ##"], "local_prefix": "0"
+    },
+    "iran": {
+      "first": ["Reza", "Maryam", "Hossein", "Zahra", "Amir", "Fatemeh", "Mehdi", "Narges", "Saeed", "Parisa"],
+      "last": ["Hosseini", "Ahmadi", "Mohammadi", "Rezaei", "Moradi", "Karimi", "Jafari", "Rahimi"],
+      "code": "+98", "mobile": ["9## ### ####"], "local_prefix": "0"
+    },
+    "south_africa": {
+      "first": ["Thabo", "Lerato", "Sipho", "Nomvula", "Johan", "Annelie", "Themba", "Zanele", "Pieter", "Naledi"],
+      "last": ["Nkosi", "Dlamini", "Ndlovu", "Mokoena", "Botha", "Naidoo", "Khumalo", "Pillay"],
+      "code": "+27", "mobile": ["8# ### ####", "7# ### ####"], "local_prefix": "0"
     }
   },
 
-  "family": ["Mom", "Mum", "Dad", "Grandma", "Grandpa", "My sister", "My brother", "Auntie", "Uncle"],
+  "family": ["Mom", "Mum", "Dad", "Grandma", "Grandpa", "My sister", "My brother", "Auntie", "Uncle", "Mama", "Papa",
+             "Ammi", "Abbu", "Nani"],
   "services": ["Dentist", "Doctor", "Vet", "Plumber", "Hairdresser", "Pizzeria", "Taxi", "Gym", "Landlord", "Babysitter"],
-  "email_domains": ["gmail.com", "outlook.com", "proton.me", "yahoo.com", "icloud.com", "work.example"],
+  "email_domains": ["gmail.com", "outlook.com", "proton.me", "yahoo.com", "icloud.com", "work.example", "qq.com", "163.com",
+                    "naver.com", "yandex.ru"],
 
   "events": [
     {"title": "Dentist", "minutes": [30, 60], "hours": [8, 18]},
@@ -122,6 +199,9 @@
     {"title": "Jummah prayers", "minutes": [60], "hours": [12, 13]},
     {"title": "Temple visit", "minutes": [60], "hours": [17, 19]},
     {"title": "Diwali dinner", "minutes": [180], "hours": [18, 20]},
+    {"title": "Iftar with {person}", "minutes": [90], "hours": [17, 20]},
+    {"title": "Eid lunch with {person}", "minutes": [180], "hours": [12, 14]},
+    {"title": "Lunar New Year dinner with {person}", "minutes": [180], "hours": [18, 20]},
     {"title": "Sprint planning", "minutes": [60], "hours": [10, 14]},
     {"title": "Design review", "minutes": [60], "hours": [10, 16]},
     {"title": "Client call", "minutes": [30], "hours": [9, 17]},
@@ -173,10 +253,12 @@
              "Dubai", "Tokyo", "Seoul", "São Paulo", "Warsaw", "Rome", "Vienna", "Prague", "Amsterdam", "Dublin",
              "Athens", "Istanbul", "Cairo", "Nairobi", "Accra", "Johannesburg", "Delhi", "Bangalore", "Karachi",
              "Dhaka", "Bangkok", "Singapore", "Jakarta", "Manila", "Sydney", "Melbourne", "Auckland", "Mexico City",
-             "Bogotá", "Buenos Aires", "Lima", "Chicago", "Vancouver", "Montreal", "Stockholm", "Oslo", "Helsinki"],
+             "Bogotá", "Buenos Aires", "Lima", "Chicago", "Vancouver", "Montreal", "Stockholm", "Oslo", "Helsinki",
+             "Beijing", "Shanghai", "Shenzhen", "Moscow", "Lahore", "Chennai", "Kolkata", "Ho Chi Minh City",
+             "Addis Ababa", "Kinshasa", "Riyadh", "Tehran"],
 
   "reminders": [
-    "Take the pizza out", "Check the oven", "Pay rent", "Water the plants", "Call {person}", "Take my pills",
+    "Check the oven", "Water the plants", "Call {person}", "Take my pills",
     "Move the car", "Pick up the kids", "Buy milk", "Submit the report", "Book the dentist", "Charge the laptop",
     "Put the bins out", "Feed the cat", "Renew the passport", "Pay the electricity bill", "Collect the parcel",
     "Defrost the chicken", "Send {person} the photos", "Cancel the free trial",
@@ -198,7 +280,7 @@
   ],
 
   "notes": [
-    {"topic": "cabin wifi", "text": "Cabin wifi password: pinetree42"},
+    {"topic": "spare key", "text": "Spare key: under the blue pot"},
     {"topic": "gate code", "text": "Gate code at Mum's: 4471#"},
     {"topic": "bike lock", "text": "Bike lock code: 0815"},
     {"topic": "shopping", "text": "Shopping: eggs, milk, bread, coffee"},
@@ -245,7 +327,7 @@
     {"topic": "nana wifi", "text": "Wifi at Nana's: tulip1952"}
   ],
 
-  "music": ["Daft Punk", "Radiohead", "Taylor Swift", "Burna Boy", "Bad Bunny", "BTS", "Arctic Monkeys", "Adele",
+  "music": ["Daft Punk", "Taylor Swift", "Burna Boy", "Bad Bunny", "BTS", "Arctic Monkeys", "Adele",
             "Miles Davis", "Bach", "Coldplay", "Kendrick Lamar", "Rosalía", "lo-fi beats", "some jazz", "80s hits",
             "Fleetwood Mac", "Stromae", "AR Rahman", "Måneskin", "Beyoncé", "Drake", "Ed Sheeran", "Billie Eilish",
             "The Beatles", "Queen", "Nirvana", "Ludovico Einaudi", "Mozart", "Chopin", "Fela Kuti", "Wizkid", "Tems",
@@ -255,8 +337,9 @@
             "Pink Floyd", "Led Zeppelin", "David Bowie", "Bob Marley", "Nina Simone", "Ella Fitzgerald",
             "John Coltrane", "Vivaldi", "a classical playlist", "chill vibes", "workout music", "study music",
             "rain sounds", "road trip songs", "party hits", "90s rock", "bossa nova", "Afrobeats", "country classics",
-            "reggaeton", "Bollywood hits", "K-pop"],
-  "places": ["the station", "the airport", "the nearest pharmacy", "the office", "Mum's", "the hospital",
+            "reggaeton", "Bollywood hits", "K-pop", "Teresa Teng", "Mandopop", "Atif Aslam", "Nusrat Fateh Ali Khan",
+            "Raisa", "dangdut", "Sarah Geronimo", "Tarkan", "Sezen Aksu", "Tchaikovsky"],
+  "places": ["the airport", "the nearest pharmacy", "the office", "Mum's", "the hospital",
              "the supermarket", "the stadium", "the beach", "the city centre", "a petrol station", "the museum",
              "the bus stop", "the bank", "the post office", "the library", "the gym", "the park",
              "the shopping centre", "the cinema", "the town hall", "the university", "the school", "the church",
@@ -268,7 +351,7 @@
            "Signal", "WhatsApp", "Telegram", "Spotify", "Settings", "Files", "Calculator", "Notes", "Weather",
            "YouTube", "Chrome", "Gmail", "Photos", "Netflix", "Uber", "Instagram", "Facebook", "TikTok", "Snapchat",
            "Discord", "Slack", "Zoom", "Reddit", "Duolingo", "Strava", "Bitwarden", "VLC", "Kindle", "Pocket Casts",
-           "Wikipedia"],
+           "Wikipedia", "WeChat", "LINE", "KakaoTalk", "Grab", "Paytm", "Viber"],
 
   "now": {
     "hours": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1],

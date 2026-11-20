@@ -6,6 +6,8 @@ import random
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
+from app.sim import fold
+
 INGREDIENTS = json.loads((Path(__file__).parent / "ingredients.json").read_text())
 CORE_APPS = ["Calendar", "Clock", "Contacts", "Messages", "Phone"]
 
@@ -26,7 +28,7 @@ def contact(rng: random.Random, home: str, first: str | None = None) -> dict:
     last = rng.choice(region["last"])
     email = None
     if rng.random() < 0.5:
-        email = f"{first}.{last}@{rng.choice(INGREDIENTS['email_domains'])}".lower().encode("ascii", "ignore").decode()
+        email = fold(f"{first}.{last}@{rng.choice(INGREDIENTS['email_domains'])}").encode("ascii", "ignore").decode()
     return {"name": f"{first} {last}", "phone": phone_number(rng, region), "email": email}
 
 

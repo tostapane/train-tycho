@@ -6,6 +6,7 @@ import ast
 import copy
 import operator
 import re
+import unicodedata
 from datetime import date, datetime, time, timedelta
 
 from app.prompt import load_tools
@@ -14,7 +15,8 @@ TOOLS = {t["name"]: t for t in load_tools()}
 
 # A phone with nothing on it. A case's state replaces any of these keys.
 EMPTY_STATE = {
-    "events": [],      # {"id", "title", "date", "start": "HH:MM" or None (all day), "duration_minutes", "repeat"}
+    "events": [],      # {"id", "title", "date", "start": "HH:MM" or None (all day), "duration_minutes", "repeat",
+                       #  "skip": dates a repeating one doesn't happen on (optional)}
     "contacts": [],    # {"name", "phone", "email" or None}
     "notes": [],       # {"text"}
     "reminders": [],   # {"text", "date", "time"}
@@ -46,6 +48,8 @@ class Phone:
         if "number" in args:
             # Android dials "+1 (415) 555-0132" and "+14155550132" alike.
             args = args | {"number": re.sub(r"[^0-9+]", "", args["number"])}
+        if name == "draft_message":
+            args = {"app": "sms"} | args  # the log shows the app that opens, named or not
         try:
             result = getattr(self, "tool_" + name)(**args)
         except ToolError as e:
@@ -71,16 +75,19 @@ class Phone:
         return f"Alarm set for {hour:02}:{minute:02}" + (f", every {', '.join(days)}." if days else ".")
 
     # Events day by day, each day by start time (all-day first), as calendar apps list them.
-    def tool_find_events(self, from_date, to_date=None):
+    # With a query, only events whose title has all its words, as find_contact matches names.
+    def tool_find_events(self, from_date, to_date=None, query=None):
         start, end = parse_date(from_date), parse_date(to_date or from_date)
         if (end - start).days > 400:
             raise ToolError("search at most 400 days at a time.")
+        words = fold(query or "").split()
         lines = []
         for offset in range((end - start).days + 1):
             day = start + timedelta(days=offset)
-            on_day = sorted((e for e in self.state["events"] if occurs(e, day)), key=lambda e: e["start"] or "")
+            on_day = sorted((e for e in self.state["events"] if occurs(e, day) and all(w in fold(e["title"]) for w in words)),
+                            key=lambda e: e["start"] or "")
             lines += [event_line(e, day) for e in on_day]
-        return "\n".join(lines) or "No events."
+        return "\n".join(lines) or (f"No events match '{query}'." if query else "No events.")
 
     def tool_add_event(self, title, date, start=None, duration_minutes=60, repeat=None):
         parse_date(date)
@@ -107,14 +114,23 @@ class Phone:
                 e["duration_minutes"] = 60
         return "Changed:\n" + "\n".join(event_line(e) for e in events)
 
-    def tool_delete_events(self, ids):
+    # With a date, a repeating event loses only that day (an exception, as Android's calendar stores it).
+    def tool_delete_events(self, ids, date=None):
         events = self.events_by_id(ids)
-        self.state["events"] = [e for e in self.state["events"] if e not in events]
-        return "Deleted:\n" + "\n".join(event_line(e) for e in events)
+        day = parse_date(date) if date else None
+        lines = []
+        for e in events:
+            if day and e.get("repeat"):
+                e["skip"] = e.get("skip", []) + [day.isoformat()]
+                lines.append(event_line(e, day) + ", this day only")
+            else:
+                self.state["events"].remove(e)
+                lines.append(event_line(e))
+        return "Deleted:\n" + "\n".join(lines)
 
     def tool_find_contact(self, name):
-        words = name.lower().split()
-        found = [c for c in self.state["contacts"] if all(w in c["name"].lower() for w in words)]
+        words = fold(name).split()
+        found = [c for c in self.state["contacts"] if all(w in fold(c["name"]) for w in words)]
         lines = [f"{c['name']}: phone {c['phone']}, email {c['email'] or 'none'}" for c in found]
         return "\n".join(lines) or f"No contact matches '{name}'."
 
@@ -127,10 +143,21 @@ class Phone:
     def tool_draft_email(self, body, to=None, subject=None):
         return f"Email {'to ' + to if to else 'without a recipient'} ready in the email app."
 
-    def tool_add_reminder(self, text, date, time):
-        when = datetime.combine(parse_date(date), parse_time(time))
+    # At a date and time, or in some minutes from now (so the model never adds times up).
+    def tool_add_reminder(self, text, date=None, time=None, in_minutes=None):
+        if in_minutes is not None and (date or time):
+            raise ToolError("give in_minutes, or date and time, not both.")
+        if in_minutes is not None:
+            if not 1 <= in_minutes <= 1440:
+                raise ToolError("in_minutes must be 1 to 1440.")
+            when = self.now + timedelta(minutes=in_minutes)
+        elif date and time:
+            when = datetime.combine(parse_date(date), parse_time(time))
+        else:
+            raise ToolError("give a date and time, or in_minutes.")
         if when <= self.now:
             raise ToolError("that time has already passed.")
+        date, time = when.date().isoformat(), when.strftime("%H:%M")
         self.state["reminders"].append({"text": text, "date": date, "time": time})
         return f"Reminder set for {date} {time}."
 
@@ -139,8 +166,8 @@ class Phone:
         return "Note saved."
 
     def tool_find_notes(self, query):
-        words = query.lower().split()
-        found = [n["text"] for n in self.state["notes"] if all(w in n["text"].lower() for w in words)]
+        words = fold(query).split()
+        found = [n["text"] for n in self.state["notes"] if all(w in fold(n["text"]) for w in words)]
         return "\n".join(found) or "No notes match."
 
     def tool_open_app(self, name):
@@ -152,6 +179,8 @@ class Phone:
         return f"Directions to {destination} opened."
 
     def tool_flashlight(self, on):
+        if self.state["flashlight"] == on:
+            return f"Flashlight is already {'on' if on else 'off'}."
         self.state["flashlight"] = on
         return f"Flashlight {'on' if on else 'off'}."
 
@@ -197,6 +226,13 @@ class Phone:
         return events
 
 
+# Lowercase without accents, for searches: "Lucía" and "lucia" match, as in Android's contact search.
+# A few letters have no accent to strip, so they're mapped by hand (ı, ł, ø, đ, ß).
+def fold(text: str) -> str:
+    text = text.lower().translate(str.maketrans({"ı": "i", "ł": "l", "ø": "o", "đ": "d", "ß": "ss"}))
+    return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+
+
 # One event on one day, e.g. "id 3: Dentist, Thursday 2026-11-19 10:00, 60 min"
 # or "id 8: Anna's birthday, Thursday 2026-11-26, all day, repeats yearly".
 def event_line(e: dict, day: date | None = None) -> str:
@@ -210,7 +246,7 @@ def event_line(e: dict, day: date | None = None) -> str:
 def occurs(e: dict, day: date) -> bool:
     first = parse_date(e["date"])
     repeat = e.get("repeat")
-    if day < first or (not repeat and day != first):
+    if day < first or (not repeat and day != first) or day.isoformat() in e.get("skip", []):
         return False
     return (not repeat or repeat == "daily" or (repeat == "weekdays" and day.weekday() < 5)
             or (repeat == "weekly" and day.weekday() == first.weekday())

@@ -46,7 +46,9 @@ def check_repo():
         from gen import checks, recipes
         say("ok" if GRAMMAR_FILE.read_text() == build() else "FAIL", "app/hven.gbnf matches app/tools.json")
         kinds = {recipes.draw(seed)["kind"] for seed in range(300)}
-        say("ok", f"300 recipes drawn, {len(kinds)} kinds")
+        missing = kinds - set(recipes.ALLOWED_TOOLS)
+        say("FAIL" if missing else "ok", f"300 recipes drawn, {len(kinds)} kinds"
+            + (f"; no ALLOWED_TOOLS for {', '.join(sorted(missing))}" if missing else ""))
         say("ok" if checks.says("push yoga to sat 5pm", "move|push") and checks.says("an hour and a half", "90 minutes") else "FAIL",
             "message checks answer as expected")
     except Exception as e:
@@ -83,12 +85,17 @@ def check_teacher(server: str, parallel: int):
     from gen import recipes
     teacher = generate.Teacher(server)
     try:
-        text, used = teacher.measure(teacher.complete, "Count from one to five: one,", 24, [], 0.0, 1)
+        (text, _), used = teacher.measure(teacher.complete, "Count from one to five: one,", 24, [], 0.0, 1)
         say("ok" if used["completion_tokens"] > 0 else "FAIL",
             f"one completion: {used['completion_tokens']} tokens in {used['seconds']} s, usage reported, text {text.strip()[:30]!r}")
     except Exception as e:
         say("FAIL", f"completion failed: {type(e).__name__}: {e}")
         return
+
+    # Thinking must end at </think> by itself: if the server ignores that stop, every step runs to the budget.
+    thinking, cut, shown = generate.step(teacher, "<|im_start|>user\nWhat is 2 + 2? One word.<|im_end|>\n", 2048, 1)
+    say("ok" if thinking and not cut else "FAIL", f"thinking stopped at </think> after {len(thinking)} characters, answer {shown.strip()[:20]!r}"
+        if thinking and not cut else "thinking ran to the budget: the server doesn't stop at </think>")
 
     start = time.time()
     with ThreadPoolExecutor(parallel) as pool:

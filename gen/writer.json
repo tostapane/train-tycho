@@ -31,6 +31,8 @@
     {"wants": "Email Dev (dev.kumar@proton.me) that the invoice is attached.", "style": "plain", "message": "email Dev, tell him the invoice is attached", "followup": null},
     {"wants": "Ask a general knowledge question (science, geography, language). No action wanted.", "style": "plain", "message": "what's the tallest mountain in the world", "followup": null},
     {"wants": "Tell the assistant not to set an alarm because they're up early anyway.", "style": "casual", "message": "don't bother with the alarm, I'm up early anyway", "followup": null, "shape": "reason"},
+    {"wants": "Remark how \"Lunch with Priya\" went (it's over), asking for nothing to be done.", "style": "casual", "message": "lunch with priya was so nice today", "followup": null},
+    {"wants": "Ask whether the assistant can send emails, asking for nothing to be done.", "style": "plain", "message": "can you send emails?", "followup": null, "shape": "short"},
     {"wants": "Say they should email their boss later, without asking for anything.", "style": "lowercase", "message": "gotta email my boss later", "followup": null},
     {"wants": "Ask for a reminder, with no time or day. Leave that information out.", "style": "casual", "message": "can you put a reminder in", "followup": null, "shape": "sentence"},
     {"wants": "Clear the whole calendar for saturday.", "style": "plain", "message": "clear my saturday", "followup": null, "shape": "short"},

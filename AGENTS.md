@@ -32,7 +32,7 @@ These must stay identical to what `../hven` ships; a change on one side needs th
   `writer.json`: message styles and the examples the teacher sees. `checks.py`: does a message say what the recipe needs.
 - `generate.py`: pass 1, the teacher writes the user's messages; pass 2, it plays the assistant live on the fake
   phone, and `check()` keeps only correct runs. Each record keeps the teacher's tokens and time.
-- `stats.py`: summary of a data folder and `cases.csv` for plots. `qwen35Btest.py`: the 300-case pilot of a teacher.
+- `stats.py`: summary of a data folder, `cases.csv` for plots, and the hours for 50k passing cases at the measured speed.
   `smoke.py`: environment and teacher checks when the repo lands on a new machine.
 - `out/` (results, data, pilot) and `build/` (llama-server): generated, gitignored.
 

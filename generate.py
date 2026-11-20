@@ -1,43 +1,53 @@
 # Makes training cases with a teacher model behind an OpenAI-style /v1/completions server (llama-server or vLLM).
-# Pass 1 (messages): the teacher writes the user's message(s) for each recipe; duplicates are dropped.
+# Pass 1 (messages): the teacher writes the user's message(s) for each recipe; a 4th copy of the same messages is dropped.
 # Pass 2 (runs): the teacher plays the assistant live on the fake phone; code checks the outcome.
 # Usage: uv run generate.py messages|runs --count N [--server URL] [--workers W] [--think-budget T] [--out DIR]
 
 import argparse
-import difflib
+import fcntl
+import hashlib
 import json
 import random
 import re
 import threading
 import time
 import urllib.request
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from itertools import islice
 from pathlib import Path
 
 from app import grammar, prompt, sim
-from eval import MAX_CALLS, in_answer, matches, parse_call, visible
+from eval import MAX_CALLS, ends_on_card, grounded_actions, in_answer, matches, parse_call, searched_day, visible
 from gen import recipes
 from gen.checks import ASSISTANT, RING, RING_OK, says
 
 HERE = Path(__file__).parent
+MAX_COPIES = 3  # the same messages, at most this many times
 WRITER_FILE = json.loads((HERE / "gen/writer.json").read_text())
 STYLES = WRITER_FILE["styles"]
 
 # The rules the teacher follows in the live run. Training text replaces them with a short prompt from the pool.
 RULES = """You are a private assistant that runs offline on the user's phone. Follow these rules exactly.
-- Look up before acting: find_contact before call, draft_message or draft_email, and use the number or email exactly as found; find_events before edit_events or delete_events.
+- Look up before acting: find_contact before call, draft_message or draft_email, and use the number or email exactly as found; find_events before edit_events or delete_events, with a query when the user names the event.
+- Questions about the calendar or a contact ("what do I have Sunday?", "what's Priya's number?"): look it up and answer from the result. Change nothing, call no one.
 - Two contacts or events match: ask which one, naming both in full. Nothing matches: say so, and offer the closest match if there is one.
 - Information missing (a time for something that happens at a time, a recipient, a duration): ask one short question. Never guess it.
-- "Remind me to..." (also "in 12 minutes") is add_reminder with the task as text. A timer only when the user says timer or countdown. Something that happens at a time (appointment, meeting, sport, dinner) is add_event. Waking up is set_alarm, with days only if it repeats.
-- Bare hours: waking up means morning; an activity means its sensible time (padel at 4 is 16:00); am/pm always wins. Dates are never in the past: "the 1st" is the next 1st.
+- "Remind me to..." is add_reminder with the task as text: in_minutes for "in 25 minutes" or "in 2 hours", else date and time. A timer only when the user says timer or countdown. Something that happens at a time (appointment, meeting, sport, dinner) is add_event. Waking up is set_alarm, with days only if it repeats.
+- Bare hours: waking up means morning; an activity means its sensible time (tennis at 2 is 14:00); am/pm always wins. Dates are never in the past: "the 3rd" is the next 3rd.
 - Messages go by SMS unless the user names WhatsApp, Telegram or Signal. Keep the user's words in the message text.
-- Change or delete many events in one call, with all their ids. Clearing a day deletes every event listed on it.
-- Event titles are short and clean: "Gym", "Dinner with Marco", never the whole request or a date or time.
-- After the tool result, answer and stop: no extra actions. After an error, fix the call once if the intent is clear, otherwise ask. Never repeat a failing call.
-- A timer can't be changed: for "make it 15", start a new timer and say the old one is still running and can be stopped in the Clock app.
-- No tool for chat, thanks, questions you can answer, "don't...", or "I should ... later". The dates before the user's message are reference only.
-- Final answer: one short sentence that repeats what was done with its key values, e.g. "Added Gym on Tuesday at 19:00 for an hour." Contacts by full name. Dates: today, tomorrow, a weekday within a week, else "3 December". Times in the user's clock format. No offers, no emojis."""
+- Drafts are not sent: the user presses send. Say the message or email is ready, never that it was sent.
+- Change or delete many events in one call, with all their ids. Clearing a day deletes every event listed on it, with that day's date so repeating ones go only for that day.
+- Event titles are short and clean: "Swimming", "Dinner with Omar", never the whole request or a date or time.
+- Call only the tools the request needs. Once it's done, answer and stop: no extra actions. After an error, fix the call once if the intent is clear, otherwise ask. Never repeat a failing call.
+- Two requests in one message: do both, then one answer for both. "If I'm free, add X": find_events first, add it only if nothing is on at that time, else say what is.
+- A timer can't be changed: for "make it 20", start a new timer and say the old one is still running and can be stopped in the Clock app.
+- No tool for chat, thanks, questions you can answer, "don't...", "I should ... later", or remarks about people, events or times that ask for nothing ("I called mum yesterday"). The dates before the user's message are reference only.
+- No tool can get the weather, news, the web, prices or any live information: say so in one short sentence and never make up an answer.
+- Final answer: one short sentence that repeats what was done with its key values, e.g. "Added Swimming on Monday at 18:30 for 45 minutes." Contacts by full name. Dates: today, tomorrow, a weekday within a week, else "3 December". Times in the user's clock format. Plain text: no markdown, no lists. No offers, no emojis.
+- Think briefly: a few short sentences on what the user wants, which tool, and which values.
+- In your thinking, reason about the request itself; never mention these rules or instructions."""
 
 WRITER = """You play a phone USER typing to their offline assistant. You are not the assistant: never answer, offer
 help or apologize. Write like a real person: never mention tools, ids or this task. Use only the facts given, and the
@@ -68,12 +78,15 @@ class Teacher:
     def __init__(self, url: str):
         self.url = url
         self.name = ""
+        self.model_id = ""
         self.mine = threading.local()
 
-    # Raw completion of `text`, cut at any of `stop`. Returns the generated text.
-    def complete(self, text: str, max_tokens: int, stop: list[str], temperature: float, seed: int) -> str:
+    # Raw completion of `text`, cut at any of `stop`. Returns the generated text, and True if it hit max_tokens.
+    def complete(self, text: str, max_tokens: int, stop: list[str], temperature: float, seed: int) -> tuple[str, bool]:
         body = {"prompt": text, "max_tokens": max_tokens, "stop": stop, "temperature": temperature, "top_p": 0.95,
                 "seed": seed}
+        if self.model_id:
+            body["model"] = self.model_id
         request = urllib.request.Request(self.url + "/v1/completions", json.dumps(body).encode(),
                                          {"Content-Type": "application/json"})
         with urllib.request.urlopen(request, timeout=600) as response:
@@ -84,7 +97,8 @@ class Teacher:
             used["requests"] += 1
             for key in ("prompt_tokens", "completion_tokens"):
                 used[key] += reply.get("usage", {}).get(key, 0)
-        return reply["choices"][0]["text"]
+        choice = reply["choices"][0]
+        return choice["text"], choice.get("finish_reason") == "length"
 
     # Runs f(*args) and returns (its result, what the teacher calls inside it cost).
     def measure(self, f, *args):
@@ -111,7 +125,7 @@ def write_messages(teacher: Teacher, recipe: dict) -> dict:
                + (f"Shape of the first message: {recipes.SHAPES[recipe['shape']]}.\n" if recipe.get("shape") else "")
                + (f"Then, after the assistant answers, a follow-up: {recipe['followup']}\n" if recipe["followup"]
                   else "No follow-up (null).\n"))
-    reply = teacher.complete(chat(writer(recipe), request), 200, ["<|im_end|>"], 1.0, recipe["seed"])
+    reply, _ = teacher.complete(chat(writer(recipe), request), 200, ["<|im_end|>"], 1.0, recipe["seed"])
     found = re.search(r"\{.*\}", reply, re.S)
     try:
         written = json.loads(found.group(0)) if found else None
@@ -129,7 +143,12 @@ def write_messages(teacher: Teacher, recipe: dict) -> dict:
         return recipe | {"messages": messages, "dropped": "sounds like the assistant"}
     if recipe["kind"] not in RING_OK and RING.search(text):
         return recipe | {"messages": messages, "dropped": "uses 'ring' for something other than a clock"}
-    missing = [s for s in recipe["say"] if not says(text, s)]
+    facts = [recipe["first_turn"]["say"], recipe["follow_say"]] if "first_turn" in recipe else [recipe["say"]]
+    missing = [s for message, required in zip(messages, facts, strict=True) for s in required if not says(message, s)]
+    if phrase := recipe.get("verbatim"):
+        words = " " + normalize(messages[-1]) + " "
+        if " " + normalize(phrase) + " " not in words:
+            missing.append(phrase)
     if missing:
         return recipe | {"messages": messages, "dropped": f"missing {missing}"}
     return recipe | {"messages": messages}
@@ -145,14 +164,24 @@ def too_close(a: str, b: str) -> bool:
     return bool(x | y) and len(x & y) / len(x | y) >= 0.8
 
 
-# One step of the assistant: thinking (cut at `budget` tokens and closed by force), then the visible part.
-def step(teacher: Teacher, text: str, budget: int, seed: int) -> tuple[str, str]:
+# True if the message contains the words of a held-out request.
+def contains(text: str, case: str) -> bool:
+    have = text.split()
+    if len(case.split()) == 2:
+        polite = {"please", "pls", "hey", "can", "could", "you", "for", "me", "thanks"}
+        return [w for w in have if w not in polite] == case.split()
+    return len(case.split()) >= 3 and all(any(h == w or len(w) >= 3 and h.startswith(w) for h in have) for w in case.split())
+
+
+# Generate thinking up to the budget, then complete the visible answer.
+def step(teacher: Teacher, text: str, budget: int, seed: int) -> tuple[str, bool, str]:
     if budget == 0:
-        return "", teacher.complete(text + prompt.assistant_start(False), 400, ["<|im_end|>"], 0.7, seed)
+        return "", False, teacher.complete(text + prompt.assistant_start(False), 400, ["<|im_end|>"], 0.7, seed)[0]
     start = text + prompt.assistant_start(True)
-    thinking = teacher.complete(start, budget, ["</think>"], 0.6, seed).strip()
-    shown = teacher.complete(start + thinking + "\n</think>\n\n", 400, ["<|im_end|>"], 0.6, seed)
-    return thinking, shown
+    thinking, cut = teacher.complete(start, budget, ["</think>"], 0.6, seed)
+    thinking = thinking.strip()
+    shown, _ = teacher.complete(start + thinking + "\n</think>\n\n", 400, ["<|im_end|>"], 0.6, seed)
+    return thinking, cut, shown
 
 
 # A whole tool call the grammar allows, at the end of the model's text.
@@ -176,20 +205,22 @@ def live_run(teacher: Teacher, case: dict, budget: int) -> dict:
         phone.in_background = False
         pending, close, calls, confirm = None, True, 0, False
         while True:
-            thinking, shown = step(teacher, text, budget, case["seed"] * 10 + len(log))
+            thinking, cut, shown = step(teacher, text, budget, case["seed"] * 10 + len(log))
             text += prompt.assistant_start(False) + shown if budget == 0 else \
                 prompt.assistant_start(True) + thinking + "\n</think>\n\n" + shown
-            log.append({"think": thinking, "model": shown})
+            log.append({"think": thinking, "think_cut": cut, "model": shown})
             answer = visible(shown)
-            if calls >= MAX_CALLS or "<tool_call>" not in shown:
+            if "<tool_call>" not in shown:
                 break
+            if calls >= MAX_CALLS:
+                return {"phone": phone.state, "answer": answer, "log": log, "problem": "too many tool calls"}
             if shown.count("<tool_call>") > 1 or not CALL.search(shown):
                 return {"phone": phone.state, "answer": answer, "log": log, "problem": "call the grammar forbids"}
             name, args = parse_call(shown)
             result = phone.run(name, args)
             calls += 1
             log.append({"tool": name, "args": args, "result": result})
-            if sim.TOOLS[name]["hven"]["confirm"]:
+            if sim.TOOLS[name]["hven"]["confirm"] and not result.startswith("Error:"):
                 pending, confirm = result, True
                 break
             text += "".join(t for t, _ in prompt.tool_response(result, budget > 0)).rsplit("<|im_start|>assistant\n", 1)[0]
@@ -198,8 +229,12 @@ def live_run(teacher: Teacher, case: dict, budget: int) -> dict:
 
 BAD_TITLE = re.compile(r"\d|\b(today|tonight|tomorrow|am|pm|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", re.I)
 OFFER = re.compile(r"would you like|anything else|let me know|feel free|is there anything", re.I)
-RAW = re.compile(r"\b\d+ h \d+ min \d+ s\b|\bid \d+\b|</?tool|<function|</?think", re.I)
+RAW = re.compile(r"\b\d+ h \d+ min \d+ s\b|\bid \d+\b|\b\d{4}-\d{2}-\d{2}\b|</?tool|<function|</?think", re.I)
 EMOJI = re.compile(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]")
+
+
+# Reject formatting that the Android plain text viewer would display literally.
+MARKDOWN = re.compile(r"\*\*|`|^\s*(#+ |[-*•] |\d+[.)] )", re.M)
 
 
 # Lowercase, with times joined as in `words`: what answer patterns are matched against.
@@ -212,6 +247,8 @@ def flat(text: str) -> str:
 def answer_problem(case: dict, answer: str, acted: bool) -> str | None:
     if EMOJI.search(answer) or RAW.search(answer):
         return "emoji or raw tool output"
+    if MARKDOWN.search(answer):
+        return "markdown"
     if case["formats"][1] == "24-hour" and re.search(r"\d\s?(am|pm)\b", answer, re.I):
         return "am/pm for a 24-hour user"
     if case["formats"][1] == "12-hour" and re.search(r"\b(1[3-9]|2[0-3]):[0-5]\d\b", answer):
@@ -223,16 +260,63 @@ def answer_problem(case: dict, answer: str, acted: bool) -> str | None:
     return None
 
 
-# Why a run fails, or None if it passes: end state, answer patterns, names, titles and the general answer rules.
-# A turn that ended on a confirm card has no answer: the card shows what will happen.
+# Check each turn against the facts available when the user asked it.
 def check(case: dict, run: dict) -> str | None:
     if run.get("problem"):
         return run["problem"]
+    starts = [i for i, entry in enumerate(run["log"]) if "user" in entry]
+    if len(starts) == 1 and not case.get("followup"):
+        return check_turn(case, run, [])
+    if len(starts) != 2 or "first_turn" not in case:
+        return "missing per-turn expectations"
+    first, second = run["log"][:starts[1]], run["log"][starts[1]:]
+    phone = sim.Phone(case["phone"], datetime.fromisoformat(case["now"]))
+    for entry in first:
+        if "tool" in entry:
+            phone.run(entry["tool"], entry["args"])
+    answer = next((visible(e["model"]) for e in reversed(first) if "model" in e), "")
+    first_run = {"phone": phone.state, "log": first, "confirm": ends_on_card(first), "answer": answer}
+    first_case = {k: case[k] for k in ("phone", "category", "formats")} | case["first_turn"]
+    problem = check_turn(first_case, first_run, [])
+    if problem:
+        return "first turn: " + problem
+    return check_turn(case, run | {"log": second}, [] if case.get("earlier") else first)
+
+
+# A read must cover the requested information before the assistant uses it.
+def checked_lookup(case: dict, calls: list) -> bool:
+    reads = [e for e in calls if sim.TOOLS[e["tool"]]["hven"]["kind"] == "read" and not e["result"].startswith("Error:")]
+    if not all(any(in_answer(e["result"], fact) for e in reads) for fact in case.get("read_has", [])):
+        return False
+    if app := case.get("missing_app"):
+        if not any(e["tool"] == "open_app" and e["args"]["name"].casefold() == app.casefold()
+                   and e["result"].startswith("Error:") for e in calls):
+            return False
+    if topic := case.get("note_topic"):
+        if not any(e["tool"] == "find_notes" and e["result"] == "No notes match." and e["args"]["query"].strip()
+                   and all(word in sim.fold(topic) for word in sim.fold(e["args"]["query"]).split()) for e in reads):
+            return False
+    if day := case.get("calendar_day"):
+        return searched_day(calls, day)
+    return True
+
+
+# Score the state, actions and answer of one turn. Earlier reads can ground a genuine follow-up.
+def check_turn(case: dict, run: dict, history: list) -> str | None:
     start = sim.EMPTY_STATE | case["phone"]
     answer = flat(run["answer"])
     state_ok = [o for o in case["expect"] if matches(start | o.get("changes", {}), run["phone"])]
     if not state_ok:
         return "wrong end state"
+    calls = [e for e in run["log"] if "tool" in e]
+    called = [e["tool"] for e in calls]
+    kind = case["kind"]
+    if any(t not in recipes.ALLOWED_TOOLS[kind] for t in called):
+        return "tool not needed"
+    if any(t not in called for t in recipes.NEEDED_TOOLS.get(kind, [])):
+        return "skipped a needed lookup"
+    if not grounded_actions(history + calls) or not checked_lookup(case, calls):
+        return "missing relevant lookup"
     if not run["confirm"] and not answer:
         return "no answer"
     if not run["confirm"] and not any(
@@ -240,11 +324,19 @@ def check(case: dict, run: dict) -> str | None:
             and all(any(in_answer(answer, flat(alt)) for alt in group) for group in o.get("answer_any", []))
             and not any(in_answer(answer, s) for s in o.get("answer_not", [])) for o in state_ok):
         return "answer misses what the recipe needs"
-    acted = run["phone"] != start
-    for text in [visible(e["model"]) for e in run["log"] if "model" in e]:
-        problem = text and answer_problem(case, text, acted)
-        if problem:
-            return problem
+    acted = False
+    for e in run["log"]:
+        if "user" in e:
+            acted = False
+        elif "tool" in e:
+            acted |= sim.TOOLS[e["tool"]]["hven"]["kind"] == "action" and not e["result"].startswith("Error")
+        else:
+            text = visible(e["model"])
+            problem = text and answer_problem(case, text, acted)
+            if problem:
+                return problem
+    if any(e.get("tool") in ("draft_message", "draft_email") for e in run["log"]) and re.search(r"\bsent\b", answer):
+        return "draft called sent"
     contacts = run["phone"]["contacts"]
     for opened in run["phone"]["opened"]:
         person = next((c for c in contacts if opened.get("number") and re.sub(r"[^0-9+]", "", c["phone"]) == opened["number"]
@@ -259,18 +351,48 @@ def check(case: dict, run: dict) -> str | None:
     return None
 
 
-# Runs f(*args); on any error (server down, odd output) prints it and returns None, so one case can't stop the run.
-# The case isn't written, so the next run tries it again.
-def safe(f, *args):
-    try:
-        return f(*args)
-    except Exception as e:
-        print(f"ERROR {type(e).__name__}: {e}", flush=True)
-        return None
+# Keep each folder tied to the exact generation sources and the teacher used for each pass.
+def prepare_folder(folder: Path, stage: str, teacher: Teacher, budget: int):
+    path = folder / "manifest.json"
+    if not path.exists() and any(folder.glob("*.jsonl")):
+        raise SystemExit("This folder contains unversioned data. Choose a fresh --out folder.")
+    digest = hashlib.sha256()
+    for pattern in ("generate.py", "eval.py", "app/*.py", "app/*.json", "gen/*.py", "gen/*.json", "cases/core.jsonl"):
+        for source in sorted(HERE.glob(pattern)):
+            digest.update(str(source.relative_to(HERE)).encode() + b"\0" + source.read_bytes() + b"\0")
+    signature = digest.hexdigest()
+    manifest = json.loads(path.read_text()) if path.exists() else {"sources": signature}
+    if manifest["sources"] != signature:
+        raise SystemExit("Generation sources differ from this folder's manifest. Choose a fresh --out folder.")
+    with urllib.request.urlopen(teacher.url + "/v1/models", timeout=15) as response:
+        teacher.model_id = json.load(response)["data"][0]["id"]
+    config = {"teacher": teacher.model_id}
+    if stage == "runs":
+        config["think_budget"] = budget
+    if stage in manifest and manifest[stage] != config:
+        raise SystemExit(f"The {stage} settings differ from this folder's manifest.")
+    manifest[stage] = config
+    temp = path.with_suffix(".tmp")
+    temp.write_text(json.dumps(manifest, indent=2) + "\n")
+    temp.replace(path)
+
+
+# Put all copies of an opening message on the same side before making any training variants.
+def conversation_split(messages: list[str]) -> str:
+    group = hashlib.sha256(normalize(messages[0]).encode()).digest()
+    return "validation" if int.from_bytes(group[:8]) % 20 == 0 else "train"
+
+
+# Read records one at a time so full phones and conversations need not all fit in memory.
+def records(path: Path):
+    if path.exists():
+        with path.open() as source:
+            for line in source:
+                yield json.loads(line)
 
 
 def done_seeds(path: Path) -> set:
-    return {json.loads(line)["seed"] for line in path.open()} if path.exists() else set()
+    return {record["seed"] for record in records(path)}
 
 
 def main():
@@ -278,6 +400,7 @@ def main():
     parser.add_argument("stage", choices=["messages", "runs"])
     parser.add_argument("--count", type=int, default=100, help="recipes to draw (messages) or cases to run (runs)")
     parser.add_argument("--server", default="http://127.0.0.1:8080")
+    parser.add_argument("--kinds", default="", help="messages only: draw just these comma-separated recipe kinds")
     parser.add_argument("--workers", type=int, default=1, help="cases in flight at once (~256 on a big GPU)")
     parser.add_argument("--think-budget", type=int, default=512, help="thinking tokens per step; 0 = thinking off")
     parser.add_argument("--out", default="out/data", help="folder for the results, inside this repo")
@@ -286,28 +409,70 @@ def main():
     folder = HERE / args.out
     folder.mkdir(parents=True, exist_ok=True)
 
+    args.kinds = set(filter(None, args.kinds.split(",")))
+    if args.kinds - recipes.ALLOWED_TOOLS.keys() or (args.kinds and args.stage != "messages"):
+        parser.error("--kinds needs valid recipe kinds and the messages stage")
+    if args.count < 0 or args.workers < 1 or args.think_budget < 0:
+        parser.error("count and budget must be nonnegative and workers must be positive")
+    with (folder / ".generation.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise SystemExit("Another generator is writing this folder.")
+        prepare_folder(folder, args.stage, teacher, args.think_budget)
+        totals = {"written": 0, "errors": 0}
+        start = time.monotonic()
+        try:
+            generate_batch(args, folder, teacher, totals)
+        finally:
+            batch = totals | {"stage": args.stage, "seconds": time.monotonic() - start}
+            with (folder / "batches.jsonl").open("a") as log:
+                log.write(json.dumps(batch) + "\n")
+        if totals["errors"]:
+            raise SystemExit(f"{totals['errors']} cases failed to run. Rerun this pass to retry their seeds.")
+
+
+# Teacher failures leave the seed available for retry and count against the elapsed batch time.
+def attempt(teacher, function, case, *args):
+    try:
+        return teacher.measure(function, teacher, case, *args)
+    except Exception as error:
+        print(f"ERROR seed {case['seed']}: {type(error).__name__}: {error}", flush=True)
+        return None
+
+
+# Process one bounded batch, keeping writes in seed order.
+def generate_batch(args, folder, teacher, totals):
     if args.stage == "messages":
         path, dropped_path = folder / "messages.jsonl", folder / "messages-dropped.jsonl"
         done = done_seeds(path) | done_seeds(dropped_path)
-        todo = [recipes.draw(s) for s in range(args.count) if s not in done]
-        seen = {normalize(json.loads(l)["messages"][0]) for l in path.open()} if path.exists() else set()
+        todo = (recipes.draw(s) for s in range(args.count) if s not in done)
+        if args.kinds:
+            todo = (case for case in todo if case["kind"] in args.kinds)
+        seen = Counter(normalize(" ".join(c["messages"])) for c in records(path))
         evals = [normalize(m) for l in (HERE / "cases/core.jsonl").open() for m in json.loads(l)["messages"]]
         with path.open("a") as out, dropped_path.open("a") as dropped, ThreadPoolExecutor(args.workers) as pool:
-            for result in pool.map(lambda r: safe(teacher.measure, write_messages, teacher, r), todo):
+            for result in pool.map(lambda r: attempt(teacher, write_messages, r), todo, buffersize=2 * args.workers):
                 if result is None:
+                    totals["errors"] += 1
                     continue
                 case, used = result
+                totals["written"] += 1
                 case |= {"write": used}
-                key = normalize(case["messages"][0])
-                if "dropped" not in case and (key in seen or any(too_close(key, e) for e in evals)):
-                    case["dropped"] = "duplicate, or too close to an eval case"
+                key = normalize(" ".join(case["messages"]))
+                if "dropped" not in case and seen[key] >= MAX_COPIES:
+                    case["dropped"] = f"{MAX_COPIES} copies already"
+                if "dropped" not in case and any(too_close(normalize(m), e) or contains(normalize(m), e)
+                                                 for m in case["messages"] for e in evals):
+                    case["dropped"] = "too close to an eval case"
                 if "dropped" in case:
                     dropped.write(json.dumps({k: case[k] for k in ("seed", "category", "kind", "messages", "say", "dropped", "write")},
                                              ensure_ascii=False) + "\n")
                     dropped.flush()
                     print(f"DROP {case['kind']:<16} {' >> '.join(case['messages'])[:60]:<60} {case['dropped']}", flush=True)
                     continue
-                seen.add(key)
+                case["split"] = conversation_split(case["messages"])
+                seen[key] += 1
                 out.write(json.dumps(case, ensure_ascii=False) + "\n")
                 out.flush()
                 print(f"{case['category']:<10} {case['kind']:<16} {' >> '.join(case['messages'])}", flush=True)
@@ -315,12 +480,20 @@ def main():
 
     path = folder / "runs.jsonl"
     done = done_seeds(path)
-    cases = [json.loads(l) for l in (folder / "messages.jsonl").open()]
-    todo = [c for c in cases if c["seed"] not in done][:args.count]
+    messages = folder / "messages.jsonl"
+    if not messages.exists():
+        raise SystemExit("Run the messages pass in this folder first.")
+    todo = islice((c for c in records(messages) if c["seed"] not in done), args.count)
+
+    def play(case):
+        return case, attempt(teacher, live_run, case, args.think_budget)
+
     with path.open("a") as out, ThreadPoolExecutor(args.workers) as pool:
-        for case, result in zip(todo, pool.map(lambda c: safe(teacher.measure, live_run, teacher, c, args.think_budget), todo)):
+        for case, result in pool.map(play, todo, buffersize=2 * args.workers):
             if result is None:
+                totals["errors"] += 1
                 continue
+            totals["written"] += 1
             run, used = result
             problem = check(case, run)
             out.write(json.dumps(case | {"run": run, "play": used | {"think_budget": args.think_budget},

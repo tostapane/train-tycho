@@ -10,7 +10,8 @@ set-alarm-days ::= "<parameter=days>\n" "[" ("\"monday\"" | "\"tuesday\"" | "\"w
 set-alarm ::= "set_alarm>\n" set-alarm-hour set-alarm-minute set-alarm-days?
 find-events-from-date ::= "<parameter=from_date>\n" date "\n</parameter>\n"
 find-events-to-date ::= "<parameter=to_date>\n" date "\n</parameter>\n"
-find-events ::= "find_events>\n" find-events-from-date find-events-to-date?
+find-events-query ::= "<parameter=query>\n" text "\n</parameter>\n"
+find-events ::= "find_events>\n" find-events-from-date find-events-to-date? find-events-query?
 add-event-title ::= "<parameter=title>\n" text "\n</parameter>\n"
 add-event-date ::= "<parameter=date>\n" date "\n</parameter>\n"
 add-event-start ::= "<parameter=start>\n" time "\n</parameter>\n"
@@ -26,7 +27,8 @@ edit-events-shift-days ::= "<parameter=shift_days>\n" integer "\n</parameter>\n"
 edit-events-shift-minutes ::= "<parameter=shift_minutes>\n" integer "\n</parameter>\n"
 edit-events ::= "edit_events>\n" edit-events-ids edit-events-title? edit-events-date? edit-events-start? edit-events-duration-minutes? edit-events-shift-days? edit-events-shift-minutes?
 delete-events-ids ::= "<parameter=ids>\n" "[" integer ("," " "? integer)* "]" "\n</parameter>\n"
-delete-events ::= "delete_events>\n" delete-events-ids
+delete-events-date ::= "<parameter=date>\n" date "\n</parameter>\n"
+delete-events ::= "delete_events>\n" delete-events-ids delete-events-date?
 find-contact-name ::= "<parameter=name>\n" text "\n</parameter>\n"
 find-contact ::= "find_contact>\n" find-contact-name
 call-number ::= "<parameter=number>\n" text "\n</parameter>\n"
@@ -42,7 +44,8 @@ draft-email ::= "draft_email>\n" draft-email-to? draft-email-subject? draft-emai
 add-reminder-text ::= "<parameter=text>\n" text "\n</parameter>\n"
 add-reminder-date ::= "<parameter=date>\n" date "\n</parameter>\n"
 add-reminder-time ::= "<parameter=time>\n" time "\n</parameter>\n"
-add-reminder ::= "add_reminder>\n" add-reminder-text add-reminder-date add-reminder-time
+add-reminder-in-minutes ::= "<parameter=in_minutes>\n" integer "\n</parameter>\n"
+add-reminder ::= "add_reminder>\n" add-reminder-text add-reminder-date? add-reminder-time? add-reminder-in-minutes?
 add-note-text ::= "<parameter=text>\n" text "\n</parameter>\n"
 add-note ::= "add_note>\n" add-note-text
 find-notes-query ::= "<parameter=query>\n" text "\n</parameter>\n"

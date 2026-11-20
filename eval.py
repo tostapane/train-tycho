@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app import prompt, sim
+from app.sim import fold
 from app.grammar import GRAMMAR_FILE, build
 
 HERE = Path(__file__).parent
@@ -54,7 +55,9 @@ class Server:
         else:
             body["logit_bias"] = [[prompt.TOOL_CALL_TOKEN, False]]
         result = self.post("/completion", body)
-        return result["content"], result["tokens"]
+        generated = result["tokens"]
+        # Android stops before feeding the sampled end token back into the context.
+        return result["content"], generated[:-1] if result["stop_type"] == "eos" else generated
 
     # The GGUF's file name, e.g. Qwen3.5-2B-Q4_K_M.
     def model_name(self) -> str:
@@ -96,6 +99,7 @@ def play(server: Server, case: dict, base: dict, tools: list[dict], think: bool,
             tokens.extend(server.tokens(text, special))
 
     for message in case["messages"]:
+        log.append({"user": message})
         phone.in_background = False
         add(prompt.user_turn(message, now, think, close, pending))
         pending, close, calls = None, True, 0
@@ -114,7 +118,7 @@ def play(server: Server, case: dict, base: dict, tools: list[dict], think: bool,
             result = phone.run(name, args)
             calls += 1
             log.append({"tool": name, "args": args, "result": result})
-            if sim.TOOLS[name]["hven"]["confirm"]:
+            if sim.TOOLS[name]["hven"]["confirm"] and not result.startswith("Error:"):
                 pending = result  # the app waits for the tap; the outcome goes to the next turn
                 break
             add(prompt.tool_response(result, think))
@@ -125,7 +129,9 @@ def play(server: Server, case: dict, base: dict, tools: list[dict], think: bool,
 # {"<": n} means less than n, and dicts check only the keys they list.
 def matches(expected, actual) -> bool:
     if isinstance(expected, str) and expected.startswith("~"):
-        return isinstance(actual, str) and expected[1:].lower() in actual.lower()
+        return isinstance(actual, str) and fold(expected[1:]) in fold(actual)  # "~lucia" matches "Lucía's birthday"
+    if isinstance(expected, dict) and set(expected) == {"words"}:
+        return isinstance(actual, str) and re.findall(r"\w+", fold(expected["words"])) == re.findall(r"\w+", fold(actual))
     if isinstance(expected, dict) and set(expected) == {"<"}:
         return isinstance(actual, (int, float)) and actual < expected["<"]
     if isinstance(expected, dict):
@@ -136,27 +142,93 @@ def matches(expected, actual) -> bool:
 
 
 # True if the answer says `part`. Numbers must stand alone ("7:00" isn't in "17:00", "1pm" isn't in "11pm",
-# "28.2" is in "28.20"); a phone number may also hide in the answer's digits ("+39 347-555 0101").
+# "28.2" is in "28.20", "28,2" in "28,20"); a phone number may also hide in the answer's digits ("+39 347-555 0101").
 def in_answer(answer: str, part: str) -> bool:
     answer, part = answer.lower(), part.lower()
     if part.isdigit() and len(part) >= 7:
-        return part in re.sub(r"[ ()\-]", "", answer)
+        return any(re.sub(r"\D", "", number) == part for number in re.findall(r"\+?\d(?:[ ().-]*\d)*", answer))
     pattern = re.escape(part)
     if part[:1].isdigit():
-        pattern = r"(?<![\d:.])" + pattern
+        pattern = r"(?<![\d:.,])" + pattern
     if part[-1:].isdigit():
-        pattern += r"0*(?![\d:])" if "." in part else r"(?![\d:])"
+        pattern += r"0*(?![\d:])" if "." in part or "," in part else r"(?![\d:])"
     return re.search(pattern, answer) is not None
 
 
-# Passes if any of the case's expected outcomes fits: state = start state + its changes, and the
-# answer contains each required text.
-def passed(case: dict, start: dict, phone: sim.Phone, answer: str) -> bool:
+# Check that the model saw the exact recipient or event ids before acting on them.
+def grounded_actions(log: list) -> bool:
+    numbers, emails, ids = set(), set(), set()
+    for entry in log:
+        if "tool" not in entry:
+            continue
+        name, args, result = entry["tool"], entry["args"], entry["result"]
+        if name == "find_contact":
+            for number, email in re.findall(r": phone ([^,\n]+), email ([^\n]+)", result):
+                numbers.add(re.sub(r"[^0-9+]", "", number))
+                if email != "none":
+                    emails.add(email.lower())
+        elif name == "find_events":
+            ids.update(int(i) for i in re.findall(r"^id (\d+):", result, re.M))
+        elif name in ("call", "draft_message") and args.get("number"):
+            if re.sub(r"[^0-9+]", "", args["number"]) not in numbers:
+                return False
+        elif name == "draft_email" and args.get("to") and args["to"].lower() not in emails:
+            return False
+        elif name in ("edit_events", "delete_events") and not ids.issuperset(args["ids"]):
+            return False
+    return True
+
+
+# A free/busy check must cover the whole day before booking an event.
+def searched_day(calls: list, day: str) -> bool:
+    for e in calls:
+        if e["tool"] == "add_event":
+            break
+        if e["tool"] == "find_events" and not e["result"].startswith("Error:"):
+            args = e["args"]
+            if not args.get("query") and args["from_date"] <= day <= args.get("to_date", args["from_date"]):
+                return True
+    return False
+
+
+# Confirmed actions end on their card. Every other completed turn needs a visible answer.
+def ends_on_card(log: list) -> bool:
+    return bool(log and "tool" in log[-1] and sim.TOOLS[log[-1]["tool"]]["hven"]["confirm"]
+                and not log[-1]["result"].startswith("Error:"))
+
+
+# Check the expected state, tool evidence and answer together.
+def passed(case: dict, start: dict, phone: sim.Phone, answer: str, log: list) -> bool:
+    if any("error" in e for e in log) or not (answer.strip() or ends_on_card(log)) or not grounded_actions(log):
+        return False
+    if "first_expect" in case:
+        turns = [i for i, e in enumerate(log) if "user" in e]
+        if len(turns) != 2:
+            return False
+        first = log[:turns[1]]
+        interim = sim.Phone(start, phone.now)
+        for e in first:
+            if "tool" in e:
+                interim.run(e["tool"], e["args"])
+        first_answer = next((visible(e["model"]) for e in reversed(first) if "model" in e), "")
+        if not passed({"expect": case["first_expect"]}, start, interim, first_answer, first):
+            return False
+    calls = [e for e in log if "tool" in e]
     for outcome in case["expect"]:
-        state_ok = matches(start | outcome.get("changes", {}), phone.state)
-        answer_ok = all(in_answer(answer, s) for s in outcome.get("answer_has", []))
-        if state_ok and answer_ok:
-            return True
+        if outcome.get("no_tool") and calls or not matches(start | outcome.get("changes", {}), phone.state):
+            continue
+        if "calendar_day" in outcome and not searched_day(calls, outcome["calendar_day"]):
+            continue
+        if not all(in_answer(answer, s) for s in outcome.get("answer_has", [])):
+            continue
+        if not all(any(in_answer(answer, s) for s in group) for group in outcome.get("answer_any", [])):
+            continue
+        if any(in_answer(answer, s) for s in outcome.get("answer_not", [])):
+            continue
+        if any(not any(e["tool"] == name and all(in_answer(e["result"], s) for s in facts)
+                       for e in calls) for name, facts in outcome.get("reads", {}).items()):
+            continue
+        return True
     return False
 
 
@@ -193,7 +265,7 @@ def main():
                 start = copy.deepcopy(sim.EMPTY_STATE) | base["state"] | case.get("state", {})
                 began = time.monotonic()
                 phone, answer, log = play(server, case, base, tools, args.think, seed=run * 1000 + i)
-                ok = passed(case, start, phone, answer)
+                ok = passed(case, start, phone, answer, log)
                 seconds = time.monotonic() - began
                 group = case["id"].split("/")[0]
                 groups.setdefault(group, []).append(ok)
