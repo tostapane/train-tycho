@@ -20,7 +20,7 @@ def teacher(*replies):
         if isinstance(reply, tuple):
             name, args = reply
             params = "".join(f"<parameter={key}>\n{value}\n</parameter>\n" for key, value in args.items())
-            reply = f"<tool_call>\n<function={name}>\n{params}</function>\n</tool_call>"
+            reply = f"<tool_call>\n<function={name}>\n{params}</function>\n"  # the server stops before </tool_call>
         outputs.append((reply, False))
     model.complete.side_effect = outputs
     return model

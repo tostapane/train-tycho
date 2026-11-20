@@ -70,7 +70,7 @@ ALL_DAY = [("{person}'s birthday", "{person}", ["{person}", "birthday|bday"], Tr
            ("Holiday", "holiday", ["holiday"], False), ("Bank holiday", "holiday", ["bank holiday|public holiday"], False),
            ("Wedding anniversary", "anniversary", ["anniversary"], True)]
 # Words for "move all my meetings": an event title word and its plural.
-GROUPS = {"meeting": "meetings", "lesson": "lessons", "class": "classes", "appointment": "appointments"}
+GROUPS = {"meeting": "meetings", "lesson": "lessons", "class": "classes"}  # not "appointments": to many people that means everything
 NO_EMAIL = ["no email", "email address", "don't have", "doesn't have", "no address", "isn't saved", "not saved"]
 
 

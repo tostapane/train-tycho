@@ -30,7 +30,7 @@ STYLES = WRITER_FILE["styles"]
 
 # The rules the teacher follows in the live run. Training text replaces them with a short prompt from the pool.
 RULES = """You are a private assistant that runs offline on the user's phone. Follow these rules exactly.
-- Look up before acting: find_contact before call, draft_message or draft_email, and use the number or email exactly as found; find_events before edit_events or delete_events, with a query when the user names the event.
+- Look up before acting: find_contact before call, draft_message or draft_email, and use the number or email exactly as found; find_events before edit_events or delete_events. When the user names the event, search by its name from today to a year ahead.
 - Questions about the calendar or a contact ("what do I have Sunday?", "what's Priya's number?"): look it up and answer from the result. Change nothing, call no one.
 - Two contacts or events match: ask which one, naming both in full. Nothing matches: say so, and offer the closest match if there is one.
 - Information missing (a time for something that happens at a time, a recipient, a duration): ask one short question. Never guess it.
@@ -176,12 +176,23 @@ def contains(text: str, case: str) -> bool:
 # Generate thinking up to the budget, then complete the visible answer.
 def step(teacher: Teacher, text: str, budget: int, seed: int) -> tuple[str, bool, str]:
     if budget == 0:
-        return "", False, teacher.complete(text + prompt.assistant_start(False), 400, ["<|im_end|>"], 0.7, seed)[0]
+        return "", False, one_call(teacher.complete(text + prompt.assistant_start(False), 400, STOP, 0.7, seed)[0])
     start = text + prompt.assistant_start(True)
     thinking, cut = teacher.complete(start, budget, ["</think>"], 0.6, seed)
     thinking = thinking.strip()
-    shown, _ = teacher.complete(start + thinking + "\n</think>\n\n", 400, ["<|im_end|>"], 0.6, seed)
-    return thinking, cut, shown
+    shown, _ = teacher.complete(start + thinking + "\n</think>\n\n", 400, STOP, 0.6, seed)
+    return thinking, cut, one_call(shown)
+
+
+STOP = ["<|im_end|>", "</tool_call>"]
+
+
+# The app's grammar allows one call per turn and only true/false: the teacher's text gets the same limits.
+def one_call(shown: str) -> str:
+    if "<tool_call>" not in shown:
+        return shown
+    shown = re.sub(r"(<parameter=\w+>\n)(True|False)\n", lambda m: m[1] + m[2].lower() + "\n", shown)
+    return shown.rstrip() + "\n</tool_call>"
 
 
 # A whole tool call the grammar allows, at the end of the model's text.

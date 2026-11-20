@@ -126,12 +126,17 @@ def play(server: Server, case: dict, base: dict, tools: list[dict], think: bool,
 
 
 # True if `actual` fits `expected`. Strings starting with "~" match by case-insensitive containment,
+# {"words": text} means those words in order with at most 2 more around them ("hey dewi", "please"),
 # {"<": n} means less than n, and dicts check only the keys they list.
 def matches(expected, actual) -> bool:
     if isinstance(expected, str) and expected.startswith("~"):
         return isinstance(actual, str) and fold(expected[1:]) in fold(actual)  # "~lucia" matches "Lucía's birthday"
     if isinstance(expected, dict) and set(expected) == {"words"}:
-        return isinstance(actual, str) and re.findall(r"\w+", fold(expected["words"])) == re.findall(r"\w+", fold(actual))
+        if not isinstance(actual, str):
+            return False
+        want, got = re.findall(r"\w+", fold(expected["words"])), re.findall(r"\w+", fold(actual))
+        extra = len(got) - len(want)
+        return 0 <= extra <= 2 and any(got[i:i + len(want)] == want for i in range(extra + 1))
     if isinstance(expected, dict) and set(expected) == {"<"}:
         return isinstance(actual, (int, float)) and actual < expected["<"]
     if isinstance(expected, dict):
@@ -167,8 +172,8 @@ def grounded_actions(log: list) -> bool:
                 numbers.add(re.sub(r"[^0-9+]", "", number))
                 if email != "none":
                     emails.add(email.lower())
-        elif name == "find_events":
-            ids.update(int(i) for i in re.findall(r"^id (\d+):", result, re.M))
+        elif name in ("find_events", "add_event"):  # add_event answers "Added: id 8: ..."
+            ids.update(int(i) for i in re.findall(r"^(?:Added: )?id (\d+):", result, re.M))
         elif name in ("call", "draft_message") and args.get("number"):
             if re.sub(r"[^0-9+]", "", args["number"]) not in numbers:
                 return False

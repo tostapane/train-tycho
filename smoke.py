@@ -1,5 +1,5 @@
-# Smoke test for a new machine: is the repo intact, is the GPU/disk/vLLM there, does the teacher answer and
-# do both generation passes work on a few cases? Run it once before starting vLLM (steps 1-2), once after (step 3).
+# Smoke test for a new machine: is the repo intact, is the GPU/disk/vLLM there, does the teacher answer, and does
+# the real generator write, play, save and resume a few cases? Run it before starting vLLM (1-2) and after (3-4).
 # Usage: uv run smoke.py [--server http://127.0.0.1:8080] [--parallel 32]. Exit code 1 if a FAIL line was printed.
 
 import argparse
@@ -17,7 +17,7 @@ from pathlib import Path
 HERE = Path(__file__).parent
 FAILS = 0
 MIN_VLLM = (0, 17, 0)
-MIN_DISK_GB = 130  # both candidate teachers: 37.5 GB + 78.9 GB, plus room
+MIN_DISK_GB = 100  # both teachers: 27B 30.9 GB + 35B-A3B 37.5 GB, plus room for the data
 
 
 def say(level: str, text: str):
@@ -71,18 +71,17 @@ def check_machine():
     say("ok" if have else "WARN", f"downloaded: {', '.join(have) or 'no Qwen3.5 model yet'}")
 
 
-def check_teacher(server: str, parallel: int):
+def check_teacher(server: str, parallel: int) -> bool:
     print(f"\n3. Teacher at {server}")
     try:
         with urllib.request.urlopen(server + "/v1/models", timeout=10) as response:
             name = json.loads(response.read())["data"][0]["id"]
     except Exception as e:
-        say("WARN", f"no teacher answering ({type(e).__name__}); start vLLM and run again for this step")
-        return
+        say("WARN", f"no teacher answering ({type(e).__name__}); start vLLM and run again for steps 3-4")
+        return False
     say("ok", f"model: {name}")
 
     import generate
-    from gen import recipes
     teacher = generate.Teacher(server)
     try:
         (text, _), used = teacher.measure(teacher.complete, "Count from one to five: one,", 24, [], 0.0, 1)
@@ -90,12 +89,7 @@ def check_teacher(server: str, parallel: int):
             f"one completion: {used['completion_tokens']} tokens in {used['seconds']} s, usage reported, text {text.strip()[:30]!r}")
     except Exception as e:
         say("FAIL", f"completion failed: {type(e).__name__}: {e}")
-        return
-
-    # Thinking must end at </think> by itself: if the server ignores that stop, every step runs to the budget.
-    thinking, cut, shown = generate.step(teacher, "<|im_start|>user\nWhat is 2 + 2? One word.<|im_end|>\n", 2048, 1)
-    say("ok" if thinking and not cut else "FAIL", f"thinking stopped at </think> after {len(thinking)} characters, answer {shown.strip()[:20]!r}"
-        if thinking and not cut else "thinking ran to the budget: the server doesn't stop at </think>")
+        return False
 
     start = time.time()
     with ThreadPoolExecutor(parallel) as pool:
@@ -103,28 +97,40 @@ def check_teacher(server: str, parallel: int):
     seconds = time.time() - start
     tokens = sum(used["completion_tokens"] for _, used in results)
     say("ok", f"{parallel} completions at once: {tokens / seconds:.0f} tokens/s in total, {tokens / seconds / parallel:.1f} per stream")
+    return True
 
-    kept = []
-    for seed in range(4):
-        case, used = teacher.measure(generate.write_messages, teacher, recipes.draw(seed))
-        what = f"dropped ({case['dropped']})" if "dropped" in case else "kept"
-        say("ok", f"pass 1, {case['kind']}: {' >> '.join(case['messages'])!r} {what}")
-        if "dropped" not in case:
-            kept.append(case)
-    if not kept:
-        say("WARN", "no kept message to play in pass 2; run again")
-        return
-    case = kept[0]
+
+# The real generator in a throwaway folder: write 8 recipes, play 2, resume and play the rest, read it all back.
+def check_generation(server: str):
+    print("\n4. Generation end to end, in out/smoke-generation (kept until the next smoke)")
+    folder = HERE / "out/smoke-generation"
+    shutil.rmtree(folder, ignore_errors=True)
+    for stage, count in [("messages", 8), ("runs", 2), ("runs", 8)]:
+        done = subprocess.run([sys.executable, "generate.py", stage, "--count", str(count), "--workers", "4",
+                               "--server", server, "--out", "out/smoke-generation"], cwd=HERE, capture_output=True, text=True)
+        if done.returncode:
+            say("FAIL", f"generate.py {stage} --count {count}: {(done.stdout + done.stderr).strip()[-300:]}")
+            return
     try:
-        run, used = teacher.measure(generate.live_run, teacher, case, 128)
-        problem = generate.check(case, run)
-        calls = [e["tool"] for e in run["log"] if "tool" in e]
-        thought = any(e.get("think") for e in run["log"])
-        say("ok", f"pass 2, {case['kind']}: calls {calls or 'none'}, answer {run['answer'][:50]!r}, "
-                  f"{used['requests']} requests, {used['seconds']} s, {'passed' if problem is None else 'failed: ' + problem}")
-        say("ok" if thought else "WARN", "thinking text came back" if thought else "no thinking text: check the server's template")
+        kept = [json.loads(line) for line in (folder / "messages.jsonl").open()]
+        runs = [json.loads(line) for line in (folder / "runs.jsonl").open()]
+        manifest = json.loads((folder / "manifest.json").read_text())
     except Exception as e:
-        say("FAIL", f"live run failed: {type(e).__name__}: {e}")
+        say("FAIL", f"saved files unreadable: {type(e).__name__}: {e}")
+        return
+    for r in runs:
+        say("ok", f"{r['kind']:<15} {' >> '.join(r['messages'])[:60]!r} -> {'PASS' if r['passed'] else 'fail: ' + r['problem']}")
+    seeds = [r["seed"] for r in runs]
+    whole = len(seeds) == len(set(seeds)) == len(kept) and set(seeds) == {c["seed"] for c in kept}
+    say("ok" if kept and whole else "FAIL", f"{len(kept)} of 8 messages kept, {len(runs)} runs saved over two batches, "
+        + ("each kept case exactly once" if whole else "runs don't match the kept messages one to one"))
+    say("ok" if {"messages", "runs"} <= manifest.keys() else "FAIL",
+        f"manifest: messages by {manifest.get('messages', {}).get('teacher', '?')}, runs by {manifest.get('runs', {}).get('teacher', '?')}")
+    steps = [e for r in runs for e in r["run"]["log"] if "think" in e]
+    thought, cut = sum(bool(e["think"]) for e in steps), sum(e["think_cut"] for e in steps)
+    say("ok" if thought and cut <= len(steps) // 4 else "WARN", f"thinking in {thought} of {len(steps)} steps, {cut} cut at the budget")
+    stats = subprocess.run([sys.executable, "stats.py", str(folder)], cwd=HERE, capture_output=True, text=True)
+    say("ok" if stats.returncode == 0 else "FAIL", stats.stdout.splitlines()[0] if stats.returncode == 0 else stats.stderr.strip()[-300:])
 
 
 def main():
@@ -134,7 +140,8 @@ def main():
     args = parser.parse_args()
     check_repo()
     check_machine()
-    check_teacher(args.server, args.parallel)
+    if check_teacher(args.server, args.parallel):
+        check_generation(args.server)
     print(f"\n{'FAILED: fix the FAIL lines above' if FAILS else 'No failures.'} (WARN lines are worth a look.)")
     sys.exit(1 if FAILS else 0)
 
