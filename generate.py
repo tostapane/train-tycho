@@ -6,7 +6,10 @@
 import argparse
 import difflib
 import json
+import random
 import re
+import threading
+import time
 import unicodedata
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -40,22 +43,34 @@ RULES = """You are a private assistant that runs offline on the user's phone. Fo
 
 WRITER = """You play a phone USER typing to their offline assistant. You are not the assistant: never answer, offer
 help or apologize. Write like a real person: never mention tools, ids or this task. Use only the facts given, and the
-day and time words exactly as given, and words in quotes word for word. Reply with JSON only: {"message": "...", "followup": "..." or null}.
+day and time words exactly as given, and words in quotes word for word. A style or shape may add a filler or a short
+reason, never anything that changes what is asked. Reply with JSON only: {"message": "...", "followup": "..." or null}.
 
 Examples:
-What the user wants: Call Kenji (in contacts as "Kenji Tanaka"). Style: terse.
-{"message": "call kenji", "followup": null}
-What the user wants: Add "Gym" on tuesday at 7pm, for 60 minutes. Style: slang.
-{"message": "gym tues 7pm for an hr", "followup": null}
-What the user wants: A timer for 10 minutes. Then a follow-up: change it to 15 minutes. Style: casual.
-{"message": "set a timer for 10 min", "followup": "make it 15"}
-What the user wants: Thank the assistant. No action wanted. Style: plain.
-{"message": "thanks, that's perfect", "followup": null}"""
+"""
+EXAMPLES = json.loads((HERE / "ingredients.json").read_text())["examples"]
+
+
+# The writer's instructions for one recipe: four examples drawn by its seed (one in its style), so no single one gets copied.
+def writer(recipe: dict) -> str:
+    rng = random.Random(recipe["seed"])
+    same = [e for e in EXAMPLES if e["style"] == recipe["style"]]
+    others = [e for e in EXAMPLES if e["style"] != recipe["style"]]
+    picks = rng.sample(same, min(1, len(same))) + rng.sample(others, 3)
+    rng.shuffle(picks)
+    shown = []
+    for e in picks:
+        shape = f"Shape of the first message: {recipes.SHAPES[e['shape']]}.\n" if e.get("shape") else ""
+        shown.append(f"What the user wants: {e['wants']}\nStyle: {e['style']}: {STYLES[e['style']]}.\n{shape}"
+                     + json.dumps({"message": e["message"], "followup": e["followup"]}, ensure_ascii=False))
+    return WRITER + "\n\n".join(shown)
 
 
 class Teacher:
     def __init__(self, url: str):
         self.url = url
+        self.name = ""
+        self.mine = threading.local()
 
     # Raw completion of `text`, cut at any of `stop`. Returns the generated text.
     def complete(self, text: str, max_tokens: int, stop: list[str], temperature: float, seed: int) -> str:
@@ -64,7 +79,23 @@ class Teacher:
         request = urllib.request.Request(self.url + "/v1/completions", json.dumps(body).encode(),
                                          {"Content-Type": "application/json"})
         with urllib.request.urlopen(request, timeout=600) as response:
-            return json.loads(response.read())["choices"][0]["text"]
+            reply = json.loads(response.read())
+        self.name = reply.get("model", self.name)
+        used = getattr(self.mine, "used", None)
+        if used is not None:
+            used["requests"] += 1
+            for key in ("prompt_tokens", "completion_tokens"):
+                used[key] += reply.get("usage", {}).get(key, 0)
+        return reply["choices"][0]["text"]
+
+    # Runs f(*args) and returns (its result, what the teacher calls inside it cost).
+    def measure(self, f, *args):
+        self.mine.used = {"requests": 0, "prompt_tokens": 0, "completion_tokens": 0}
+        start = time.time()
+        result = f(*args)
+        used = self.mine.used | {"seconds": round(time.time() - start, 1), "teacher": self.name,
+                                 "at": datetime.now().isoformat(timespec="seconds")}
+        return result, used
 
 
 # A chat turn in Qwen's template with thinking off: system, user, then the start of the answer.
@@ -200,9 +231,10 @@ def write_messages(teacher: Teacher, recipe: dict) -> dict:
     now = datetime.fromisoformat(recipe["now"])
     request = (f"Now: {now.strftime('%A %d %B %Y, %H:%M')}.\nWhat the user wants: {recipe['task']}\n"
                f"Style: {recipe['style']}: {STYLES[recipe['style']]}.\n"
+               + (f"Shape of the first message: {recipes.SHAPES[recipe['shape']]}.\n" if recipe.get("shape") else "")
                + (f"Then, after the assistant answers, a follow-up: {recipe['followup']}\n" if recipe["followup"]
                   else "No follow-up (null).\n"))
-    reply = teacher.complete(chat(WRITER, request), 200, ["<|im_end|>"], 1.0, recipe["seed"])
+    reply = teacher.complete(chat(writer(recipe), request), 200, ["<|im_end|>"], 1.0, recipe["seed"])
     found = re.search(r"\{.*\}", reply, re.S)
     try:
         written = json.loads(found.group(0)) if found else None
@@ -382,14 +414,16 @@ def main():
         seen = {normalize(json.loads(l)["messages"][0]) for l in path.open()} if path.exists() else set()
         evals = [normalize(m) for l in (HERE / "cases/core.jsonl").open() for m in json.loads(l)["messages"]]
         with path.open("a") as out, dropped_path.open("a") as dropped, ThreadPoolExecutor(args.workers) as pool:
-            for case in pool.map(lambda r: safe(write_messages, teacher, r), todo):
-                if case is None:
+            for result in pool.map(lambda r: safe(teacher.measure, write_messages, teacher, r), todo):
+                if result is None:
                     continue
+                case, used = result
+                case |= {"write": used}
                 key = normalize(case["messages"][0])
                 if "dropped" not in case and (key in seen or any(too_close(key, e) for e in evals)):
                     case["dropped"] = "duplicate, or too close to an eval case"
                 if "dropped" in case:
-                    dropped.write(json.dumps({k: case[k] for k in ("seed", "kind", "messages", "say", "dropped")},
+                    dropped.write(json.dumps({k: case[k] for k in ("seed", "category", "kind", "messages", "say", "dropped", "write")},
                                              ensure_ascii=False) + "\n")
                     dropped.flush()
                     print(f"DROP {case['kind']:<16} {' >> '.join(case['messages'])[:60]:<60} {case['dropped']}", flush=True)
@@ -405,11 +439,13 @@ def main():
     cases = [json.loads(l) for l in (OUT / "messages.jsonl").open()]
     todo = [c for c in cases if c["seed"] not in done][:args.count]
     with path.open("a") as out, ThreadPoolExecutor(args.workers) as pool:
-        for case, run in zip(todo, pool.map(lambda c: safe(live_run, teacher, c, args.think_budget), todo)):
-            if run is None:
+        for case, result in zip(todo, pool.map(lambda c: safe(teacher.measure, live_run, teacher, c, args.think_budget), todo)):
+            if result is None:
                 continue
+            run, used = result
             problem = check(case, run)
-            out.write(json.dumps(case | {"run": run, "passed": problem is None, "problem": problem}, ensure_ascii=False) + "\n")
+            out.write(json.dumps(case | {"run": run, "play": used | {"think_budget": args.think_budget},
+                                         "passed": problem is None, "problem": problem}, ensure_ascii=False) + "\n")
             out.flush()
             calls = " -> ".join(f"{e['tool']}({e['args']})" for e in run["log"] if "tool" in e)
             print(f"{'PASS' if problem is None else 'FAIL'}  {case['kind']:<16} {' >> '.join(case['messages'])[:45]:<45} "

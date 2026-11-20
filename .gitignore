@@ -6,3 +6,4 @@ __pycache__/
 # Eval results and generated training data
 results/
 data/
+data-before/

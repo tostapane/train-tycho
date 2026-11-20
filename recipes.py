@@ -13,13 +13,40 @@ from sim import occurs
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 TEXTS = ["running late", "on my way", "call me when you can", "happy birthday!", "dinner at 8?", "see you soon",
          "can you pick up milk?", "thanks for today", "I'm outside", "the meeting moved to 3", "landed safely",
-         "don't forget the keys"]
+         "don't forget the keys", "I'll be there in ten", "can't talk now, will call later", "did you get my email?",
+         "happy anniversary!", "where are you?", "I'm at the entrance", "traffic is bad", "I missed the bus",
+         "good luck today!", "congratulations!", "let's meet at noon", "I'll bring dessert", "sorry, I can't make it",
+         "I've got the tickets", "see you at the station", "the keys are under the mat", "call me back please",
+         "thanks, that helped a lot", "I'm leaving now", "just landed", "happy new year!", "get well soon",
+         "sounds good", "I'll be home late", "dinner is ready", "please bring the charger", "are we still on for tonight?",
+         "I forgot my wallet", "I'm in the lobby", "can you send me the address?", "I'm stuck in the lift",
+         "the kids are asleep", "lunch is on me", "don't wait for me", "all good here", "no worries, take your time"]
 CHAT = ["thank the assistant", "say good morning", "say the last thing worked, nice", "ask how it is doing",
         "ask a general knowledge question (science, geography, language)", "ask for a word that means happy",
-        "ask for a quick cooking tip", "ask what a word means"]
+        "ask for a quick cooking tip", "ask what a word means", "ask how far the moon is",
+        "ask for the capital of a country", "ask for a synonym of tired", "ask for a joke", "ask how to boil an egg",
+        "ask who wrote a famous book", "ask what a haiku is", "ask for a fun fact about an animal",
+        "ask what the speed of light is", "ask what photosynthesis is", "ask how to say thank you in another language",
+        "ask how to convert Celsius to Fahrenheit", "ask for a short motivational quote", "ask how long to roast a chicken",
+        "say they feel tired", "say they had a good day", "say goodbye", "say hello", "ask for a good name for a cat",
+        "ask for a word that rhymes with another", "ask in which year a famous event happened",
+        "ask how many days are in a leap year", "ask how to unclog a drain", "ask for a book recommendation"]
 NEGATIONS = ["not to set an alarm because they'll wake up on their own", "not to add anything, they were just thinking aloud",
-             "not to call anyone yet", "not to set a timer, they changed their mind", "to forget the last idea"]
+             "not to call anyone yet", "not to set a timer, they changed their mind", "to forget the last idea",
+             "to ignore the last message", "never mind, they'll do it themselves", "not to message anyone, they changed their mind",
+             "not to add the event, it was cancelled", "not to remind them, they'll remember", "not to open any app",
+             "to stop, they don't need anything now", "not to call the dentist, they're going in person",
+             "not to play any music, they want quiet", "not to turn on the flashlight, it's fine", "not to book anything yet",
+             "not to delete the event after all", "not to send the message, they'll do it later",
+             "not to set a timer, the food is already done", "not to move the meeting, they decided to keep it",
+             "to forget it, it was a mistake"]
 MESSY = ["typos", "slang", "terse", "lowercase", "run-on"]
+# How the user words the message, beyond the style. One is drawn per recipe (none about half of the time).
+SHAPES = {"short": "very short: two to five words", "sentence": "one full sentence", "two": "two short sentences",
+          "value first": "start with the day, the time or the name, then the action",
+          "preface": 'start with a filler or a greeting ("hey", "ok so", "quick one")',
+          "reason": "add a short reason or context (running late, in a meeting...)",
+          "thanks": 'end with "thanks" or "please"'}
 NOT_FOUND = ["can't", "cannot", "couldn't", "could not", "no contact", "not in your", "don't have", "isn't", "not find"]
 NOT_INSTALLED = ["not installed", "isn't installed", "can't find", "couldn't find", "don't see", "no app", "not on your"]
 NO_EMAIL = ["no email", "email address", "don't have", "doesn't have", "no address", "isn't saved", "not saved"]
@@ -521,7 +548,17 @@ def draw(seed: int) -> dict:
         styles = ["plain", "plain", "casual", "casual", "terse", "polite", "lowercase"]
         recipe["style"] = d.rng.choice(styles + (["indirect"] if recipe["kind"] in ("reminder_add", "reminder_in") else []))
     recipe["seed"] = seed
+    recipe["shape"] = draw_shape(seed, recipe)
     return recipe
+
+
+# A shape for the message, or None. Terse styles only get the short ones; "short" needs room for the required words.
+def draw_shape(seed: int, recipe: dict) -> str | None:
+    rng = random.Random(seed + 0x5EED)
+    options = ["short", "value first"] if recipe["style"] == "terse" else list(SHAPES)
+    if len(recipe["say"]) > 2:
+        options = [o for o in options if o != "short"]
+    return rng.choice(options) if rng.random() < 0.5 and options else None
 
 
 if __name__ == "__main__":
