@@ -7,8 +7,8 @@ import random
 import re
 from datetime import date, datetime, timedelta
 
-from phones import INGREDIENTS, contact, is_person, random_now, random_phone
-from sim import occurs
+from gen.phones import INGREDIENTS, contact, is_person, random_now, random_phone
+from app.sim import occurs
 
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 TEXTS = ["running late", "on my way", "call me when you can", "happy birthday!", "dinner at 8?", "see you soon",

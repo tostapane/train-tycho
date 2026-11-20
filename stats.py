@@ -1,4 +1,4 @@
-# Reads data/ (or the folder given) and prints how generation went; writes cases.csv, one row per drawn recipe.
+# Reads out/data (or the folder given) and prints how generation went; writes cases.csv, one row per drawn recipe.
 # Safe to run any time, even while generate.py is running. Usage: uv run stats.py [DIR]
 
 import csv
@@ -9,7 +9,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import recipes
+from gen import recipes
 
 
 def load(path: Path) -> list[dict]:
@@ -53,7 +53,7 @@ def cost(case: dict) -> dict:
 
 
 def main():
-    folder = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).parent / "data"
+    folder = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).parent / "out/data"
     kept, dropped, runs = (load(folder / n) for n in ("messages.jsonl", "messages-dropped.jsonl", "runs.jsonl"))
     ran = {r["seed"] for r in runs}
     for c in dropped:

@@ -1,13 +1,13 @@
 # Generates hven.gbnf from tools.json: the grammar for what follows <tool_call>, so the model
 # can only write a call to one of our tools, with parameters in schema order and values of the right shape.
 # Also a regex twin of it, to check calls written without the grammar (the teacher's).
-# Run after changing tools.json: uv run grammar.py
+# Run after changing tools.json: uv run python -m app.grammar
 
 import json
 import re
 from pathlib import Path
 
-from prompt import load_tools
+from app.prompt import load_tools
 
 GRAMMAR_FILE = Path(__file__).parent / "hven.gbnf"
 

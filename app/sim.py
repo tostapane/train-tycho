@@ -8,7 +8,7 @@ import operator
 import re
 from datetime import date, datetime, time, timedelta
 
-from prompt import load_tools
+from app.prompt import load_tools
 
 TOOLS = {t["name"]: t for t in load_tools()}
 

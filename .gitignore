@@ -3,7 +3,6 @@ build/
 .venv/
 __pycache__/
 
-# Eval results and generated training data
-results/
-data/
-data-before/
+# Eval results, generated data, logs
+out/
+*.log

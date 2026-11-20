@@ -11,9 +11,8 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-import prompt
-import sim
-from grammar import GRAMMAR_FILE, build
+from app import prompt, sim
+from app.grammar import GRAMMAR_FILE, build
 
 HERE = Path(__file__).parent
 MAX_CALLS = 3          # tool calls per user message; after that the model must answer
@@ -173,7 +172,7 @@ def main():
 
     grammar = GRAMMAR_FILE.read_text()
     if grammar != build():
-        raise SystemExit("hven.gbnf is out of date: run `uv run grammar.py`")
+        raise SystemExit("hven.gbnf is out of date: run `uv run python -m app.grammar`")
     tools = prompt.load_tools()
     if args.tools:
         tools = [t for t in tools if t["name"] in args.tools.split(",")]
@@ -185,8 +184,8 @@ def main():
 
     model = server.model_name()
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    out_path = HERE / "results" / f"{stamp}-{model}{'-think' if args.think else ''}{'-' + str(len(tools)) + 'tools' if args.tools else ''}.jsonl"
-    out_path.parent.mkdir(exist_ok=True)
+    out_path = HERE / "out/results" / f"{stamp}-{model}{'-think' if args.think else ''}{'-' + str(len(tools)) + 'tools' if args.tools else ''}.jsonl"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     groups = {}
     with out_path.open("w") as out:
         for run in range(args.runs):
